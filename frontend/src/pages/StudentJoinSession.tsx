@@ -16,9 +16,11 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import * as TwilioVideo from "twilio-video";
+import { useAuth } from "@/auth/AuthContext";
+import { API_V1_BASE_URL } from "@/lib/api-client";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_BASE_URL || "http://localhost:8000";
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const API_URL = API_V1_BASE_URL;
 
 type StoredUser = {
   _id: string;
@@ -34,6 +36,7 @@ type ActiveRoom = {
 
 const StudentJoinSession = () => {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
   const [sessionJoined, setSessionJoined] = useState(false);
   const [activeSessions, setActiveSessions] = useState<ActiveRoom[]>([]);
@@ -55,36 +58,16 @@ const StudentJoinSession = () => {
 
   // ─── Load current user ───────────────────────────────────────────────────────
   useEffect(() => {
-    const rawUser = localStorage.getItem("user");
-    console.log("Loading user from localStorage:", rawUser);
-
-    if (!rawUser) {
-      console.warn("No user found in localStorage - Creating test student");
-      const testStudent: StoredUser = {
-        _id: "student-test-001",
-        name: "Test Student",
-        role: "student",
-      };
-      localStorage.setItem("user", JSON.stringify(testStudent));
-      setCurrentUser(testStudent);
+    if (!authUser?._id) {
       return;
     }
 
-    try {
-      const parsed = JSON.parse(rawUser) as StoredUser;
-      console.log("Parsed user:", parsed);
-      setCurrentUser(parsed);
-    } catch (e) {
-      console.error("Error parsing user:", e);
-      const testStudent: StoredUser = {
-        _id: "student-test-001",
-        name: "Test Student",
-        role: "student",
-      };
-      localStorage.setItem("user", JSON.stringify(testStudent));
-      setCurrentUser(testStudent);
-    }
-  }, []);
+    setCurrentUser({
+      _id: authUser._id,
+      name: authUser.name,
+      role: authUser.role,
+    });
+  }, [authUser]);
 
   // ─── Fetch active rooms on load and periodically ─────────────────────────────
   useEffect(() => {
@@ -171,13 +154,7 @@ const StudentJoinSession = () => {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────────
   const getCurrentUser = (): StoredUser | null => {
-    try {
-      const rawUser = localStorage.getItem("user");
-      if (!rawUser) return null;
-      return JSON.parse(rawUser) as StoredUser;
-    } catch {
-      return null;
-    }
+    return currentUser;
   };
 
   const attachRemoteParticipant = (participant: any) => {
@@ -272,9 +249,9 @@ const StudentJoinSession = () => {
       console.error("Error joining session:", err);
       let errorMessage = "Failed to join session";
       if (err.message?.includes("Failed to fetch")) {
-        errorMessage = "❌ Cannot connect to backend. Make sure backend is running at http://localhost:8000";
+        errorMessage = "Cannot connect to backend. Check VITE_API_BASE_URL and backend server status.";
       } else if (err.message?.includes("Backend error")) {
-        errorMessage = `❌ ${err.message}`;
+        errorMessage = err.message;
       } else {
         errorMessage = err.message || errorMessage;
       }

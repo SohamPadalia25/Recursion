@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { BackendUser } from "@/lib/user-api";
 import { getCurrentUser, loginUser, logoutUser, refreshAccessToken, registerUser } from "@/lib/user-api";
+import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY } from "@/lib/api-client";
 
 export type UserRole = "student" | "instructor" | "admin";
 

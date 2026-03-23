@@ -60,9 +60,7 @@ export const generateCourseStructure = async (req, res) => {
         .json({ success: false, message: "Course not found" });
     }
 
-    // TODO: Call LLM API (e.g., OpenAI, Claude, etc.) to generate structure
-    // For now, return a mock structure
-    const generatedStructure = generateMockStructure(title, description);
+    const generatedStructure = generateTemplateStructure(title, description);
 
     return res
       .status(200)
@@ -239,32 +237,41 @@ export const getCourseStructure = async (req, res) => {
 };
 
 /**
- * Mock AI structure generator
- * Replace this with actual LLM integration
+ * Deterministic template-based structure generator
+ * Keeps backend functional without depending on external LLM services.
  */
-function generateMockStructure(title, description) {
+function generateTemplateStructure(title, description) {
+  const cleanTitle = title.trim();
+  const focusWords = cleanTitle
+    .split(/\s+/)
+    .filter((w) => w.length > 3)
+    .slice(0, 3);
+
+  const mainFocus = focusWords[0] || "Core Concepts";
+  const secondaryFocus = focusWords[1] || "Applied Practice";
+
   return {
     modules: [
       {
-        name: "Introduction & Fundamentals",
-        description: "Get started with the basics",
+        name: `${mainFocus} Foundations`,
+        description: `Build the fundamentals of ${cleanTitle}.`,
         topics: [
           {
-            name: "Course Overview",
+            name: `${cleanTitle} Overview`,
             difficulty: "easy",
-            description: "Understand what you'll learn",
+            description: `Understand the scope, outcomes, and prerequisites for ${cleanTitle}.`,
             learning_outcomes: [
-              { description: "Define the course scope", bloomLevel: "remember" },
-              { description: "Identify key learning goals", bloomLevel: "understand" },
+              { description: `Define the core scope of ${cleanTitle}`, bloomLevel: "remember" },
+              { description: "Identify primary learning goals", bloomLevel: "understand" },
             ],
             estimated_duration: 15,
             subtopics: [
               {
-                name: "What is this course?",
+                name: "Learning Goals",
                 difficulty: "easy",
-                description: "Learn the basics",
+                description,
                 learning_outcomes: [
-                  { description: "Understand core concepts", bloomLevel: "understand" },
+                  { description: "Summarize expected outcomes", bloomLevel: "understand" },
                 ],
                 estimated_duration: 10,
                 is_optional: false,
@@ -295,15 +302,15 @@ function generateMockStructure(title, description) {
         ],
       },
       {
-        name: "Core Concepts",
-        description: "Master the main concepts",
+        name: `${secondaryFocus} Deep Dive`,
+        description: `Apply ${cleanTitle} through practical workflows and advanced patterns.`,
         topics: [
           {
-            name: "Deep Dive into Core",
+            name: `${secondaryFocus} in Practice`,
             difficulty: "medium",
-            description: "Comprehensive exploration",
+            description: "Comprehensive exploration of practical execution.",
             learning_outcomes: [
-              { description: "Analyze core concepts", bloomLevel: "analyze" },
+              { description: `Analyze practical implementation patterns for ${cleanTitle}`, bloomLevel: "analyze" },
             ],
             estimated_duration: 45,
             subtopics: [

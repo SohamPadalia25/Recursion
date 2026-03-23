@@ -1,4 +1,5 @@
 import { useState, useCallback, useContext, createContext, ReactNode } from "react";
+import { API_V1_BASE_URL } from "@/lib/api-client";
 
 /**
  * Course Builder State Management
@@ -369,7 +370,7 @@ export function CourseBuilderProvider({ children }: { children: ReactNode }) {
   const loadStructure = useCallback(async (courseId: string) => {
     try {
       const response = await fetch(
-        `/api/courses/${courseId}/structure`
+        `${API_V1_BASE_URL}/courses/${courseId}/structure`
       );
       if (!response.ok) throw new Error("Failed to load structure");
       const data = await response.json();
@@ -387,7 +388,7 @@ export function CourseBuilderProvider({ children }: { children: ReactNode }) {
     async (title: string, description: string) => {
       try {
         const response = await fetch(
-          `/api/courses/${state.courseId}/generate-structure`,
+          `${API_V1_BASE_URL}/courses/${state.courseId}/generate-structure`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -443,7 +444,7 @@ export function CourseBuilderProvider({ children }: { children: ReactNode }) {
   const saveStructure = useCallback(async () => {
     try {
       const response = await fetch(
-        `/api/courses/${state.courseId}/save-structure`,
+        `${API_V1_BASE_URL}/courses/${state.courseId}/save-structure`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

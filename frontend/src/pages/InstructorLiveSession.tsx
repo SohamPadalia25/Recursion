@@ -12,9 +12,11 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import * as TwilioVideo from "twilio-video";
+import { useAuth } from "@/auth/AuthContext";
+import { API_V1_BASE_URL } from "@/lib/api-client";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_BASE_URL || "http://localhost:8000";
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const API_URL = API_V1_BASE_URL;
 
 type StoredUser = {
   _id: string;
@@ -24,6 +26,7 @@ type StoredUser = {
 
 const InstructorLiveSession = () => {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [roomName, setRoomName] = useState("");
@@ -39,38 +42,16 @@ const InstructorLiveSession = () => {
 
   // Load current user
   useEffect(() => {
-    let rawUser = localStorage.getItem("user");
-    console.log("Loading user from localStorage:", rawUser);
-    
-    if (!rawUser) {
-      console.warn("No user found in localStorage - Creating test instructor");
-      // Create a test instructor for testing
-      const testInstructor: StoredUser = {
-        _id: "instructor-test-001",
-        name: "Dr. Test Instructor",
-        role: "instructor",
-      };
-      localStorage.setItem("user", JSON.stringify(testInstructor));
-      setCurrentUser(testInstructor);
+    if (!authUser?._id) {
       return;
     }
 
-    try {
-      const parsed = JSON.parse(rawUser) as StoredUser;
-      console.log("Parsed user:", parsed);
-      setCurrentUser(parsed);
-    } catch (e) {
-      console.error("Error parsing user:", e);
-      // Create a test instructor on parse error
-      const testInstructor: StoredUser = {
-        _id: "instructor-test-001",
-        name: "Dr. Test Instructor",
-        role: "instructor",
-      };
-      localStorage.setItem("user", JSON.stringify(testInstructor));
-      setCurrentUser(testInstructor);
-    }
-  }, []);
+    setCurrentUser({
+      _id: authUser._id,
+      name: authUser.name,
+      role: authUser.role,
+    });
+  }, [authUser]);
 
   const generateRoomName = () => {
     const timestamp = Date.now();
@@ -79,13 +60,7 @@ const InstructorLiveSession = () => {
   };
 
   const getCurrentUser = (): StoredUser | null => {
-    try {
-      const rawUser = localStorage.getItem("user");
-      if (!rawUser) return null;
-      return JSON.parse(rawUser) as StoredUser;
-    } catch {
-      return null;
-    }
+    return currentUser;
   };
 
   const startSession = async () => {
@@ -161,9 +136,9 @@ const InstructorLiveSession = () => {
       // Provide helpful error messages
       let errorMessage = "Failed to start session";
       if (err.message.includes("Failed to fetch")) {
-        errorMessage = `❌ Cannot connect to backend server. Make sure the backend is running at http://localhost:8000`;
+        errorMessage = "Cannot connect to backend server. Check VITE_API_BASE_URL and backend status.";
       } else if (err.message.includes("Backend error")) {
-        errorMessage = `❌ Backend API error: ${err.message}. Check if video endpoint is working.`;
+        errorMessage = `Backend API error: ${err.message}. Check if video endpoint is working.`;
       } else {
         errorMessage = err.message || errorMessage;
       }
@@ -320,7 +295,7 @@ const InstructorLiveSession = () => {
                 <div className="space-y-2 mt-2 ml-2 text-red-600/80">
                   <p>1. Make sure backend is running:</p>
                   <code className="bg-black/20 px-2 py-1 rounded block my-1">cd backend && npm run dev</code>
-                  <p>2. Check that backend is at <span className="font-mono">http://localhost:8000</span></p>
+                  <p>2. Check VITE_API_BASE_URL points to backend API</p>
                   <p>3. Verify Twilio credentials in <span className="font-mono">backend/.env</span></p>
                   <p>4. Check browser console (F12) for more details</p>
                 </div>
@@ -359,31 +334,6 @@ const InstructorLiveSession = () => {
             </motion.button>
           )}
 
-          {/* Test Mode Switcher */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mt-6 pt-6 border-t border-border"
-          >
-            <p className="text-xs text-muted-foreground mb-3">👤 Test Mode: <span className="font-semibold text-foreground">{currentUser?.role === "instructor" ? "Instructor" : "Student"}</span></p>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                const testStudent: StoredUser = {
-                  _id: "student-test-001",
-                  name: "Test Student",
-                  role: "student",
-                };
-                localStorage.setItem("user", JSON.stringify(testStudent));
-                window.location.href = "/student/join-session";
-              }}
-              className="w-full py-2 rounded-lg border border-gray-400 text-gray-600 font-semibold hover:bg-gray-100 transition-all text-sm"
-            >
-              Switch to Student Mode
-            </motion.button>
-          </motion.div>
         </motion.div>
       </div>
     );

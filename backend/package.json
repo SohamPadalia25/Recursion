@@ -7,6 +7,7 @@
     "dev": "nodemon src/index.js",
     "seed:neo4j": "node src/utils/seedNeo4jGraph.js",
     "seed:demo-courses": "node src/utils/seedDemoCourses.js",
+    "seed:platform": "node src/utils/seedPlatformData.js",
     "seed:certificate-workflow": "node src/utils/seedCertificateWorkflow.js",
     "hardhat:compile": "hardhat compile",
     "chain:local": "hardhat node",

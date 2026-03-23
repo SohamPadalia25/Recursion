@@ -329,6 +329,37 @@ const getUserById = asyncHandler(async (req, res) => {
     );
 });
 
+// ─── GET USER DIRECTORY FOR LIVE TOOLS ─────────────────────
+// GET /api/v1/users/directory?role=instructor&search=alex&limit=25
+const getUserDirectory = asyncHandler(async (req, res) => {
+    const { role, search, limit = 25 } = req.query;
+
+    const parsedLimit = Math.max(1, Math.min(parseInt(limit, 10) || 25, 100));
+    const filter = { _id: { $ne: req.user._id } };
+
+    if (role && ["student", "instructor", "admin"].includes(role)) {
+        filter.role = role;
+    }
+
+    if (search?.trim()) {
+        filter.$or = [
+            { fullname: { $regex: search.trim(), $options: "i" } },
+            { username: { $regex: search.trim(), $options: "i" } },
+            { email: { $regex: search.trim(), $options: "i" } },
+        ];
+    }
+
+    const users = await User.find(filter)
+        .select("_id fullname username email role avatar")
+        .sort({ fullname: 1 })
+        .limit(parsedLimit)
+        .lean();
+
+    return res.status(200).json(
+        new ApiResponse(200, users, "User directory fetched")
+    );
+});
+
 export {
     registerUser,
     loginUser,
@@ -343,4 +374,5 @@ export {
     getMyLearning,
     getMyBadges,
     getUserById,
+    getUserDirectory,
 };

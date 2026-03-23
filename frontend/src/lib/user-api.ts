@@ -152,3 +152,16 @@ export async function changeUserRole(token: string, userId: string, role: UserRo
   });
 }
 
+export async function getUserDirectory(
+  token: string,
+  params?: { role?: UserRole | "student" | "instructor" | "admin"; search?: string; limit?: number },
+): Promise<Array<{ _id: string; fullname: string; username: string; email: string; role: UserRole; avatar?: string }>> {
+  const qs = new URLSearchParams();
+  if (params?.role) qs.set("role", params.role);
+  if (params?.search) qs.set("search", params.search);
+  if (params?.limit) qs.set("limit", String(params.limit));
+  const query = qs.toString() ? `?${qs.toString()}` : "";
+
+  return apiFetch(`${API_V1_BASE_URL}/users/directory${query}`, { method: "GET", token });
+}
+

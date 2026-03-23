@@ -3,13 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { AppFrame } from "@/components/platform/AppFrame";
 import { studentNav } from "../roleNav";
 import RoadmapGraph, { type RoadmapLink, type RoadmapNode } from "@/components/roadmap/RoadmapGraph";
+import { API_BASE_URL } from "@/lib/api-client";
 
 type GraphResponse = {
   nodes: RoadmapNode[];
   links: RoadmapLink[];
 };
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export default function StudentRoadmapPage() {
   const [graph, setGraph] = useState<GraphResponse | null>(null);
