@@ -7,6 +7,7 @@ import { sendMessageToTutor, flagTutorResponse, getChatHistory } from "../servic
 import { getOrCreateQuiz, submitQuizAttempt, regenerateQuiz } from "../services/adaptiveQuiz.service.js";
 import { generateFlashcards, reviewFlashcard, getDueFlashcards } from "../services/flashcardAgent.service.js";
 import { createStudyPlan, runStudyPlanAgent } from "../services/studyPlanAgent.service.js";
+import { findJobsFromCertificates, getTrendingJobsAndSkills } from "../services/jobRecommendation.service.js";
 
 // ─────────────────────────────────────────────
 // GET DASHBOARD AGENT DATA
@@ -167,6 +168,23 @@ const replanStudy = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, result, "Study plan replanned"));
 });
 
+// GET /api/v1/ai/jobs/trending
+const getTrendingJobs = asyncHandler(async (_req, res) => {
+  const result = await getTrendingJobsAndSkills();
+  return res.status(200).json(new ApiResponse(200, result, "Trending jobs fetched"));
+});
+
+// POST /api/v1/ai/jobs/finder
+const findJobs = asyncHandler(async (req, res) => {
+  const filters = req.body || {};
+  const result = await findJobsFromCertificates({
+    userId: req.user._id,
+    filters,
+  });
+
+  return res.status(200).json(new ApiResponse(200, result, "Personalized jobs fetched"));
+});
+
 export {
   getDashboardContext,
   tutorChat,
@@ -180,4 +198,6 @@ export {
   reviewCard,
   createPlan,
   replanStudy,
+  getTrendingJobs,
+  findJobs,
 };

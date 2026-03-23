@@ -14,6 +14,7 @@ import {
   Trophy,
   LogOut,
   FileText,
+  Briefcase,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 
@@ -27,6 +28,7 @@ const navItems = [
   { icon: FileText, label: "My Notes", to: "/student/notes" },
   { icon: Network, label: "Roadmap", to: "/student/roadmap" },
   { icon: Network, label: "Neo4j Insights", to: "/student/neo4j-insights" },
+  { icon: Briefcase, label: "Job Recommendations", to: "/student/job-recommendations" },
   { icon: Sparkles, label: "AI Tools", to: "/student/tools" },
 ];
 
@@ -70,6 +72,7 @@ export function AppSidebar() {
           const isCourseDetail = location.pathname.startsWith("/student/course/");
           const isRoadmapCourse = location.pathname.startsWith("/student/roadmap/course/");
           const isNeo4jInsights = location.pathname.startsWith("/student/neo4j-insights");
+          const isJobRecommendations = location.pathname.startsWith("/student/job-recommendations");
           const isActive = item.to === "/student"
             ? location.pathname === "/student"
             : item.to === "/student/courses"
@@ -78,6 +81,8 @@ export function AppSidebar() {
                 ? location.pathname.startsWith(item.to) || isRoadmapCourse
                 : item.to === "/student/neo4j-insights"
                   ? isNeo4jInsights
+                  : item.to === "/student/job-recommendations"
+                    ? isJobRecommendations
                 : location.pathname.startsWith(item.to);
 
           return (

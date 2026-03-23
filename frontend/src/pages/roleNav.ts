@@ -6,6 +6,7 @@ export const studentNav = [
     { label: "Progress", to: "/student/progress" },
     { label: "Tools", to: "/student/tools" },
     { label: "Certificates", to: "/student/certificates" },
+    { label: "Job Recommendations", to: "/student/job-recommendations" },
     { label: "Onboarding", to: "/student/onboarding" },
     { label: "Neo4j Insights", to: "/student/neo4j-insights" },
 ];
