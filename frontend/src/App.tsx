@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -21,6 +21,8 @@ import StudentCourseDetailPage from "./pages/student/CourseDetail";
 import StudentCoursePlayerPage from "./pages/student/CoursePlayer";
 import StudentRoadmapPage from "./pages/student/Roadmap";
 import StudentNeo4jCoursePage from "./pages/student/Neo4jCourse";
+import StudentCertificateDetailPage from "./pages/student/CertificateDetail";
+import VerifyCertificatePage from "./pages/VerifyCertificate";
 import StudentMyNotesPage from "./pages/student/MyNotes";
 import StudentInstructorVideoCallPage from "./pages/StudentInstructorVideoCall";
 import InstructorLiveSessionPage from "./pages/InstructorLiveSession";
@@ -49,6 +51,7 @@ const App = () => (
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/verify" element={<VerifyCertificatePage />} />
 
             <Route
               path="/student"
@@ -107,6 +110,14 @@ const App = () => (
               }
             />
             <Route
+              path="/student/certificate/:hash"
+              element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentCertificateDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/student/notes"
               element={
                 <ProtectedRoute allowedRoles={["student"]}>
@@ -138,7 +149,6 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/student/roadmap"
               element={
@@ -147,7 +157,6 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/student/roadmap/course/:id"
               element={
@@ -165,7 +174,6 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/instructor/live-session"
               element={
@@ -174,7 +182,6 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-
             <Route
               path="/student/join-session"
               element={
@@ -266,7 +273,6 @@ const App = () => (
               }
             />
 
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
