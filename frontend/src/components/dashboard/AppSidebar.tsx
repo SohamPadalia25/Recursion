@@ -1,31 +1,35 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
   BarChart3,
   Calendar,
   MessageSquare,
-  Settings,
   ChevronLeft,
   ChevronRight,
   Sparkles,
   Trophy,
+  LogOut,
 } from "lucide-react";
+import { useAuth } from "@/auth/AuthContext";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", active: true },
-  { icon: BookOpen, label: "Courses" },
-  { icon: BarChart3, label: "Analytics" },
-  { icon: Calendar, label: "Schedule" },
-  { icon: Trophy, label: "Achievements" },
-  { icon: MessageSquare, label: "Messages" },
-  { icon: Sparkles, label: "AI Tools" },
+  { icon: LayoutDashboard, label: "Dashboard", to: "/student" },
+  { icon: BookOpen, label: "Courses", to: "/student/courses" },
+  { icon: BarChart3, label: "Progress", to: "/student/progress" },
+  { icon: Calendar, label: "Lecture", to: "/student/lecture" },
+  { icon: Trophy, label: "Certificates", to: "/student/certificates" },
+  { icon: MessageSquare, label: "Practice", to: "/student/practice" },
+  { icon: Sparkles, label: "AI Tools", to: "/student/tools" },
 ];
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(true);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   return (
     <motion.aside
@@ -57,43 +61,57 @@ export function AppSidebar() {
 
       {/* Nav */}
       <nav className="flex-1 py-4 px-2 space-y-1">
-        {navItems.map((item, i) => (
-          <motion.button
-            key={item.label}
-            onClick={() => setActiveIndex(i)}
-            whileTap={{ scale: 0.96 }}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200 group relative ${
-              activeIndex === i
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-            }`}
-          >
-            {activeIndex === i && (
-              <motion.div
-                layoutId="sidebar-active"
-                className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              />
-            )}
-            <item.icon className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && (
-              <motion.span
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="text-sm font-medium whitespace-nowrap"
-              >
-                {item.label}
-              </motion.span>
-            )}
-          </motion.button>
-        ))}
+        {navItems.map((item) => {
+          const isCourseDetail = location.pathname.startsWith("/student/course/");
+          const isActive = item.to === "/student"
+            ? location.pathname === "/student"
+            : item.to === "/student/courses"
+              ? location.pathname.startsWith(item.to) || isCourseDetail
+              : location.pathname.startsWith(item.to);
+
+          return (
+            <motion.button
+              key={item.label}
+              onClick={() => navigate(item.to)}
+              whileTap={{ scale: 0.96 }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200 group relative ${isActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                }`}
+            >
+              {isActive && (
+                <motion.div
+                  layoutId="sidebar-active"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                />
+              )}
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-sm font-medium whitespace-nowrap"
+                >
+                  {item.label}
+                </motion.span>
+              )}
+            </motion.button>
+          );
+        })}
       </nav>
 
       {/* Settings + Collapse */}
       <div className="p-2 space-y-1 border-t border-border/50">
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors">
-          <Settings className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span className="text-sm font-medium">Settings</span>}
+        <button
+          onClick={() => {
+            logout();
+            navigate("/login");
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+        >
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          {!collapsed && <span className="text-sm font-medium">Logout</span>}
         </button>
         <button
           onClick={() => setCollapsed(!collapsed)}
