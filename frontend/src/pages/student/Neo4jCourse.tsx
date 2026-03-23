@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AppFrame } from "@/components/platform/AppFrame";
 import { Button } from "@/components/ui/button";
 import { studentNav } from "../roleNav";
+import { API_BASE_URL } from "@/lib/api-client";
 
 type Neo4jCourse = {
   id: string;
@@ -13,8 +14,6 @@ type Neo4jCourse = {
   parentCategory: string | null;
   metadata: Record<string, unknown>;
 };
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export default function StudentNeo4jCoursePage() {
   const { id } = useParams();

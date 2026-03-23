@@ -85,11 +85,9 @@ contentSchema.index({ subtopic: 1 });
 contentSchema.index({ lesson: 1 });
 
 // Ensure either topic, subtopic, or lesson is set
-contentSchema.pre("save", function (next) {
+contentSchema.pre("save", function () {
   if (!this.topic && !this.subtopic && !this.lesson) {
-    next(new Error("Content must be attached to a topic, subtopic, or lesson"));
-  } else {
-    next();
+    throw new Error("Content must be attached to a topic, subtopic, or lesson");
   }
 });
 

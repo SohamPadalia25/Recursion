@@ -7,7 +7,19 @@ import notesRoutes from "./routes/notes.routes.js";
 import mailerRoutes from "./routes/mailer.routes.js";
 import certificateRoutes from "./routes/certificate.routes.js";
 import userRoutes from "./routes/user.routes.js";
-import { adminRouter } from "./routes/other.routes.js";
+import courseRoutes from "./routes/course.routes.js";
+import moduleRoutes from "./routes/module.routes.js";
+import lessonRoutes from "./routes/lesson.routes.js";
+import aiRoutes from "./routes/ai.routes.js";
+import courseGenerationRoutes from "./routes/courseGeneration.routes.js";
+import {
+  enrollmentRouter,
+  progressRouter,
+  discussionRouter,
+  reviewRouter,
+  notificationRouter,
+  adminRouter,
+} from "./routes/other.routes.js";
 
 const app = express();
 
@@ -47,6 +59,16 @@ app.use("/api/v1/video", videoCallRoutes);
 app.use("/api/v1/notes", notesRoutes);
 app.use("/api", mailerRoutes);
 app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/courses", courseRoutes);
+app.use("/api/v1/modules", moduleRoutes);
+app.use("/api/v1/lessons", lessonRoutes);
+app.use("/api/v1/ai", aiRoutes);
+app.use("/api/v1/courses", courseGenerationRoutes);
+app.use("/api/v1/enrollments", enrollmentRouter);
+app.use("/api/v1/progress", progressRouter);
+app.use("/api/v1/discussions", discussionRouter);
+app.use("/api/v1/reviews", reviewRouter);
+app.use("/api/v1/notifications", notificationRouter);
 app.use("/api/v1/admin", adminRouter);
 
 export default app;

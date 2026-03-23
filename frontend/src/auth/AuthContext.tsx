@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { BackendUser } from "@/lib/user-api";
 import { getCurrentUser, loginUser, logoutUser, refreshAccessToken, registerUser } from "@/lib/user-api";
+import { AUTH_STORAGE_KEY, AUTH_USER_STORAGE_KEY } from "@/lib/api-client";
 
 export type UserRole = "student" | "instructor" | "admin";
 
@@ -26,9 +27,17 @@ type AuthContextValue = {
     refreshUser: () => Promise<void>;
 };
 
-const AUTH_STORAGE_KEY = "dei-auth-user";
-
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+function normalizeUser(raw: any): AuthUser {
+    return {
+        _id: raw?._id,
+        name: raw?.fullname || raw?.name || raw?.username || "User",
+        username: raw?.username,
+        email: raw?.email || "",
+        role: raw?.role || "student",
+    };
+}
 
 export function getHomePathByRole(role: UserRole) {
     if (role === "instructor") return "/instructor";
@@ -40,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
 
     useEffect(() => {
-        const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+        const stored = localStorage.getItem(AUTH_USER_STORAGE_KEY);
         if (!stored) return;
 
         (async () => {
@@ -95,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const persistUser = (payload: AuthUser) => {
         setUser(payload);
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload));
+        localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(payload));
     };
 
     const logout = async () => {

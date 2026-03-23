@@ -26,6 +26,7 @@ const navItems = [
   { icon: MessageSquare, label: "Practice", to: "/student/practice" },
   { icon: FileText, label: "My Notes", to: "/student/notes" },
   { icon: Network, label: "Roadmap", to: "/student/roadmap" },
+  { icon: Network, label: "Neo4j Insights", to: "/student/neo4j-insights" },
   { icon: Sparkles, label: "AI Tools", to: "/student/tools" },
 ];
 
@@ -68,12 +69,15 @@ export function AppSidebar() {
         {navItems.map((item) => {
           const isCourseDetail = location.pathname.startsWith("/student/course/");
           const isRoadmapCourse = location.pathname.startsWith("/student/roadmap/course/");
+          const isNeo4jInsights = location.pathname.startsWith("/student/neo4j-insights");
           const isActive = item.to === "/student"
             ? location.pathname === "/student"
             : item.to === "/student/courses"
               ? location.pathname.startsWith(item.to) || isCourseDetail
               : item.to === "/student/roadmap"
                 ? location.pathname.startsWith(item.to) || isRoadmapCourse
+                : item.to === "/student/neo4j-insights"
+                  ? isNeo4jInsights
                 : location.pathname.startsWith(item.to);
 
           return (

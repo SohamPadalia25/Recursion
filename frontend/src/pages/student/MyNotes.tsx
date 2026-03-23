@@ -2,8 +2,10 @@ import { motion } from "framer-motion";
 import { FileText, Trash2, ExternalLink, ArrowLeft, Loader } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/auth/AuthContext";
+import { API_V1_BASE_URL } from "@/lib/api-client";
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const API_URL = API_V1_BASE_URL;
 
 type Note = {
   _id: string;
@@ -22,6 +24,7 @@ type StoredUser = {
 
 export default function MyNotesPage() {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
@@ -29,16 +32,14 @@ export default function MyNotesPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const rawUser = localStorage.getItem("user");
-    if (rawUser) {
-      try {
-        const user = JSON.parse(rawUser) as StoredUser;
-        setCurrentUser(user);
-      } catch (e) {
-        console.error("Error parsing user:", e);
-      }
+    if (authUser?._id) {
+      setCurrentUser({
+        _id: authUser._id,
+        name: authUser.name,
+        role: authUser.role,
+      });
     }
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
     if (!currentUser?._id) return;

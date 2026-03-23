@@ -21,6 +21,7 @@ import StudentCourseDetailPage from "./pages/student/CourseDetail";
 import StudentCoursePlayerPage from "./pages/student/CoursePlayer";
 import StudentRoadmapPage from "./pages/student/Roadmap";
 import StudentNeo4jCoursePage from "./pages/student/Neo4jCourse";
+import StudentNeo4jInsightsPage from "./pages/student/Neo4jInsights";
 import StudentCertificateDetailPage from "./pages/student/CertificateDetail";
 import VerifyCertificatePage from "./pages/VerifyCertificate";
 import StudentMyNotesPage from "./pages/student/MyNotes";
@@ -172,6 +173,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={["student"]}>
                   <StudentNeo4jCoursePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/student/neo4j-insights"
+              element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentNeo4jInsightsPage />
                 </ProtectedRoute>
               }
             />

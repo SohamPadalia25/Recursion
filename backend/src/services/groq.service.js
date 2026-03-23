@@ -3,13 +3,25 @@
 // Add to .env:  GROQ_API_KEY=your_key_here
 
 import Groq from "groq-sdk";
+import { ApiError } from "../utils/ApiError.js";
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+let groqClient;
+
+const getGroqClient = () => {
+  if (groqClient) return groqClient;
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new ApiError(503, "GROQ_API_KEY is not configured. AI endpoints are unavailable.");
+  }
+
+  groqClient = new Groq({ apiKey });
+  return groqClient;
+};
 
 // Core chat completion — all agents use this
 const chatWithGroq = async (messages, model = "llama3-8b-8192", jsonMode = false) => {
+  const groq = getGroqClient();
   const response = await groq.chat.completions.create({
     model,
     messages,
@@ -20,4 +32,4 @@ const chatWithGroq = async (messages, model = "llama3-8b-8192", jsonMode = false
   return response.choices[0].message.content;
 };
 
-export { groq, chatWithGroq };
+export { getGroqClient, chatWithGroq };

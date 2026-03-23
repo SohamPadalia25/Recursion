@@ -13,6 +13,7 @@ import {
     getMyLearning,
     getMyBadges,
     getUserById,
+    getUserDirectory,
 } from "../controllers/user.controller.js";
 import { upload } from "../middlewares/multer.middleware.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
@@ -65,6 +66,9 @@ router.route("/my-learning").get(verifyJWT, getMyLearning);
 
 // GET /api/v1/users/my-badges
 router.route("/my-badges").get(verifyJWT, getMyBadges);
+
+// GET /api/v1/users/directory
+router.route("/directory").get(verifyJWT, getUserDirectory);
 
 // ─── ADMIN ROUTES ────────────────────────────────────────────
 

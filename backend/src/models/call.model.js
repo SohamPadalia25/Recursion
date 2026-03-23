@@ -62,7 +62,6 @@ const callSchema = new mongoose.Schema(
 
 callSchema.index({ callerId: 1, createdAt: -1 });
 callSchema.index({ calleeId: 1, createdAt: -1 });
-callSchema.index({ roomName: 1 });
 
 const Call = mongoose.model("Call", callSchema);
 

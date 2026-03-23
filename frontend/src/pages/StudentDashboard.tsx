@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { TopNav } from "@/components/dashboard/TopNav";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { verifyCompletion } from "@/lib/certificate-api";
 import { useAuth } from "@/auth/AuthContext";
 import { JoinLiveSessionButton } from "@/components/dashboard/JoinLiveSessionButton";
+import { getMyLearning, type Enrollment } from "@/lib/course-api";
 
 const StudentDashboard = () => {
   const { user } = useAuth();
@@ -21,6 +22,40 @@ const StudentDashboard = () => {
   const [checking, setChecking] = useState(false);
   const [eligible, setEligible] = useState(false);
   const [eligibilityMessage, setEligibilityMessage] = useState("Enter a course id to check certificate eligibility.");
+  const [myLearning, setMyLearning] = useState<Enrollment[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function load() {
+      try {
+        const enrollments = await getMyLearning();
+        if (mounted) setMyLearning(enrollments || []);
+      } catch {
+        if (mounted) setMyLearning([]);
+      } finally {
+        if (mounted) setLoadingCourses(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const summary = useMemo(() => {
+    const totalCourses = myLearning.length;
+    const completedCourses = myLearning.filter((entry) => entry.isCompleted).length;
+    const avgCompletion =
+      totalCourses > 0
+        ? Math.round(myLearning.reduce((sum, entry) => sum + (entry.completionPercentage || 0), 0) / totalCourses)
+        : 0;
+
+    return { totalCourses, completedCourses, avgCompletion };
+  }, [myLearning]);
 
   const onCheckEligibility = async () => {
     if (!courseId.trim()) {

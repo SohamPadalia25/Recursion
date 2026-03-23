@@ -36,6 +36,7 @@ type StoredUser = {
 const InstructorLiveSession = () => {
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
+  const { user: authUser } = useAuth();
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [roomName, setRoomName] = useState("");
@@ -226,7 +227,7 @@ const InstructorLiveSession = () => {
       // Provide helpful error messages
       let errorMessage = "Failed to start session";
       if (err.message.includes("Failed to fetch")) {
-        errorMessage = `❌ Cannot connect to backend server. Make sure the backend is running at http://localhost:8000`;
+        errorMessage = "Cannot connect to backend server. Check VITE_API_BASE_URL and backend status.";
       } else if (err.message.includes("Backend error")) {
         errorMessage = `❌ Backend API error: ${err.message}. Check if video endpoint is working.`;
       } else if (err.message?.toLowerCase().includes("signaling")) {
@@ -482,31 +483,6 @@ const InstructorLiveSession = () => {
             </motion.button>
           )}
 
-          {/* Test Mode Switcher */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mt-6 pt-6 border-t border-border"
-          >
-            <p className="text-xs text-muted-foreground mb-3">👤 Test Mode: <span className="font-semibold text-foreground">{currentUser?.role === "instructor" ? "Instructor" : "Student"}</span></p>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                const testStudent: StoredUser = {
-                  _id: "student-test-001",
-                  name: "Test Student",
-                  role: "student",
-                };
-                localStorage.setItem("user", JSON.stringify(testStudent));
-                window.location.href = "/student/join-session";
-              }}
-              className="w-full py-2 rounded-lg border border-gray-400 text-gray-600 font-semibold hover:bg-gray-100 transition-all text-sm"
-            >
-              Switch to Student Mode
-            </motion.button>
-          </motion.div>
         </motion.div>
       </div>
     );

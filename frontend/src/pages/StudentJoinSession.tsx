@@ -16,9 +16,14 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import * as TwilioVideo from "twilio-video";
+import { useAuth } from "@/auth/AuthContext";
+import { API_V1_BASE_URL } from "@/lib/api-client";
+import { LiveMap } from "@liveblocks/client";
+import Whiteboard from "@/components/Whiteboard";
+import { RoomProvider } from "../liveblocks.config";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_BASE_URL || "http://localhost:8000";
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const API_URL = API_V1_BASE_URL;
 
 type StoredUser = {
   _id: string;
@@ -34,6 +39,7 @@ type ActiveRoom = {
 
 const StudentJoinSession = () => {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
   const [sessionJoined, setSessionJoined] = useState(false);
   const [activeSessions, setActiveSessions] = useState<ActiveRoom[]>([]);
@@ -55,40 +61,20 @@ const StudentJoinSession = () => {
 
   // ─── Load current user ───────────────────────────────────────────────────────
   useEffect(() => {
-    const rawUser = localStorage.getItem("user");
-    console.log("Loading user from localStorage:", rawUser);
-
-    if (!rawUser) {
-      console.warn("No user found in localStorage - Creating test student");
-      const testStudent: StoredUser = {
-        _id: "student-test-001",
-        name: "Test Student",
-        role: "student",
-      };
-      localStorage.setItem("user", JSON.stringify(testStudent));
-      setCurrentUser(testStudent);
+    if (!authUser?._id) {
       return;
     }
 
-    try {
-      const parsed = JSON.parse(rawUser) as StoredUser;
-      console.log("Parsed user:", parsed);
-      setCurrentUser(parsed);
-    } catch (e) {
-      console.error("Error parsing user:", e);
-      const testStudent: StoredUser = {
-        _id: "student-test-001",
-        name: "Test Student",
-        role: "student",
-      };
-      localStorage.setItem("user", JSON.stringify(testStudent));
-      setCurrentUser(testStudent);
-    }
-  }, []);
+    setCurrentUser({
+      _id: authUser._id,
+      name: authUser.name,
+      role: authUser.role,
+    });
+  }, [authUser]);
 
   // ─── Fetch active rooms on load and periodically ─────────────────────────────
   useEffect(() => {
-    if (!currentUser?._id) return;
+    if (!currentUser?._id || sessionJoined) return;
 
     const fetchActiveRooms = async () => {
       setIsFetchingRooms(true);
@@ -110,9 +96,9 @@ const StudentJoinSession = () => {
     };
 
     fetchActiveRooms();
-    const interval = setInterval(fetchActiveRooms, 3000);
+    const interval = setInterval(fetchActiveRooms, 15000);
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser, sessionJoined]);
 
   // ─── Socket.io for real-time updates ─────────────────────────────────────────
   useEffect(() => {
@@ -171,13 +157,7 @@ const StudentJoinSession = () => {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────────
   const getCurrentUser = (): StoredUser | null => {
-    try {
-      const rawUser = localStorage.getItem("user");
-      if (!rawUser) return null;
-      return JSON.parse(rawUser) as StoredUser;
-    } catch {
-      return null;
-    }
+    return currentUser;
   };
 
   const attachRemoteParticipant = (participant: any) => {
@@ -248,11 +228,25 @@ const StudentJoinSession = () => {
         throw new Error(tokenResponse.error || "Failed to get token");
       }
 
-      const room = await TwilioVideo.connect(tokenResponse.token, {
-        name: roomName,
-        audio: true,
-        video: { width: 640, height: 480 },
-      });
+      let room;
+      try {
+        room = await TwilioVideo.connect(tokenResponse.token, {
+          name: roomName,
+          audio: true,
+          video: { width: 640, height: 480 },
+        });
+      } catch (videoError: any) {
+        if (videoError?.message?.toLowerCase().includes("video source")) {
+          room = await TwilioVideo.connect(tokenResponse.token, {
+            name: roomName,
+            audio: true,
+            video: false,
+          });
+          setIsCameraOff(true);
+        } else {
+          throw videoError;
+        }
+      }
 
       roomRef.current = room;
 
@@ -272,9 +266,9 @@ const StudentJoinSession = () => {
       console.error("Error joining session:", err);
       let errorMessage = "Failed to join session";
       if (err.message?.includes("Failed to fetch")) {
-        errorMessage = "❌ Cannot connect to backend. Make sure backend is running at http://localhost:8000";
+        errorMessage = "Cannot connect to backend. Check VITE_API_BASE_URL and backend server status.";
       } else if (err.message?.includes("Backend error")) {
-        errorMessage = `❌ ${err.message}`;
+        errorMessage = err.message;
       } else {
         errorMessage = err.message || errorMessage;
       }
@@ -545,6 +539,30 @@ const StudentJoinSession = () => {
               </motion.div>
             </div>
           </div>
+
+          {/* Whiteboard (student readonly view) */}
+          {selectedRoom && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="mt-8"
+            >
+              <h2 className="text-lg font-bold text-foreground mb-4">Interactive Whiteboard</h2>
+              <div
+                className="rounded-xl overflow-hidden shadow-lg border border-border bg-background"
+                style={{ height: "500px" }}
+              >
+                <RoomProvider
+                  id={selectedRoom}
+                  initialPresence={{ selectedShape: null }}
+                  initialStorage={{ shapes: new LiveMap() }}
+                >
+                  <Whiteboard />
+                </RoomProvider>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
     );

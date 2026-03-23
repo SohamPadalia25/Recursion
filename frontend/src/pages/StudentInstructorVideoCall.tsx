@@ -16,9 +16,15 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { io, type Socket } from "socket.io-client";
 import * as TwilioVideo from "twilio-video";
+import { useAuth } from "@/auth/AuthContext";
+import { API_V1_BASE_URL } from "@/lib/api-client";
+import { getUserDirectory } from "@/lib/user-api";
+import { LiveMap } from "@liveblocks/client";
+import Whiteboard from "@/components/Whiteboard";
+import { RoomProvider } from "../liveblocks.config";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_BASE_URL || "http://localhost:8000";
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const API_URL = API_V1_BASE_URL;
 
 type StoredUser = {
   _id: string;
@@ -54,6 +60,7 @@ type ChatMessage = {
 
 const StudentInstructorVideoCall = () => {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
 
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
   const [counterpartId, setCounterpartId] = useState("");
@@ -174,11 +181,25 @@ const StudentInstructorVideoCall = () => {
 
       cleanupRoom();
 
-      const room = await TwilioVideo.connect(tokenPayload.token, {
-        name: roomName,
-        audio: true,
-        video: { width: 640, height: 480 },
-      });
+      let room;
+      try {
+        room = await TwilioVideo.connect(tokenPayload.token, {
+          name: roomName,
+          audio: true,
+          video: { width: 640, height: 480 },
+        });
+      } catch (videoError: any) {
+        if (videoError?.message?.toLowerCase().includes("video source")) {
+          room = await TwilioVideo.connect(tokenPayload.token, {
+            name: roomName,
+            audio: true,
+            video: false,
+          });
+          setStatusMessage("Connected without camera. Enable camera permissions to use video.");
+        } else {
+          throw videoError;
+        }
+      }
 
       roomRef.current = room;
 
@@ -215,23 +236,18 @@ const StudentInstructorVideoCall = () => {
   };
 
   useEffect(() => {
-    const rawUser = localStorage.getItem("user");
-    if (!rawUser) {
+    if (!authUser?._id) {
       setError("Please log in before starting a live session.");
       return;
     }
 
-    try {
-      const parsed = JSON.parse(rawUser) as StoredUser;
-      if (!parsed._id) {
-        throw new Error("Invalid user payload");
-      }
-      setCurrentUser(parsed);
-    } catch (parseError) {
-      console.error("Unable to parse user from storage", parseError);
-      setError("Unable to resolve current user. Please log in again.");
-    }
-  }, []);
+    setCurrentUser({
+      _id: authUser._id,
+      name: authUser.name,
+      role: authUser.role,
+    });
+    setError("");
+  }, [authUser]);
 
   useEffect(() => {
     if (!currentUser?._id) return;
@@ -310,24 +326,35 @@ const StudentInstructorVideoCall = () => {
     const loadUsers = async () => {
       try {
         setLoadingUsers(true);
-        // Placeholder user directory until backend endpoint is available
-        const mockUsers: UserOption[] = [
-          { _id: "instructor-demo-1", name: "Prof. Aria Winters", role: "instructor" },
-          { _id: "instructor-demo-2", name: "Dr. Noah Patel", role: "instructor" },
-          { _id: "student-demo-1", name: "Casey Lee", role: "student" },
-          { _id: "student-demo-2", name: "Jordan Evans", role: "student" },
-        ];
-        const filtered = mockUsers.filter(
-          (user) => user.role === counterpartyRole && user._id !== currentUser._id
-        );
+        if (!authUser?.accessToken) {
+          setAvailableUsers([]);
+          return;
+        }
+
+        const fetched = await getUserDirectory(authUser.accessToken, {
+          role: counterpartyRole,
+          limit: 100,
+        });
+
+        const filtered = fetched
+          .map((user) => ({
+            _id: user._id,
+            name: user.fullname || user.username,
+            role: user.role,
+          }))
+          .filter((user) => user.role === counterpartyRole && user._id !== currentUser._id);
+
         setAvailableUsers(filtered);
+      } catch (loadError) {
+        console.error("Failed to load user directory", loadError);
+        setAvailableUsers([]);
       } finally {
         setLoadingUsers(false);
       }
     };
 
     loadUsers();
-  }, [currentUser?._id, counterpartyRole]);
+  }, [authUser?.accessToken, currentUser?._id, counterpartyRole]);
 
   // ─── Attach media tracks after the video containers are mounted in the DOM ───
   // This useEffect fires after React commits the render triggered by
@@ -772,6 +799,46 @@ const StudentInstructorVideoCall = () => {
               </motion.div>
             </div>
           </div>
+        )}
+
+        {/* Full-Width Whiteboard Section - ALWAYS SHOW DURING CALL */}
+        {isCallActive && activeCall?.roomName ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-8 w-full"
+          >
+            <h2 className="text-lg font-bold text-foreground mb-4">📝 Interactive Whiteboard</h2>
+            <div className="rounded-xl overflow-hidden shadow-lg border-2 border-border bg-background w-full" style={{ height: "500px" }}>
+              <RoomProvider
+                id={activeCall.roomName}
+                initialPresence={{ selectedShape: null }}
+                initialStorage={{ shapes: new LiveMap() }}
+              >
+                <Whiteboard />
+              </RoomProvider>
+            </div>
+          </motion.div>
+        ) : (
+          (callStatus === "connecting" || callStatus === "connected") && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="mt-8 w-full"
+            >
+              <h2 className="text-lg font-bold text-foreground mb-4">📝 Interactive Whiteboard</h2>
+              <div className="rounded-xl overflow-hidden shadow-lg border-2 border-border bg-muted/50 w-full flex items-center justify-center" style={{ height: "500px" }}>
+                <div className="text-center text-muted-foreground">
+                  <p className="text-sm">Loading whiteboard...</p>
+                  <p className="text-xs mt-2">
+                    {!activeCall?.roomName ? "Waiting for room..." : "Initializing..."}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )
         )}
       </div>
     </div>
