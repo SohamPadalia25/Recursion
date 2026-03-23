@@ -12,8 +12,7 @@ export default function SignupPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [role, setRole] = useState<UserRole>("student");
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState("");
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (user) {
@@ -23,9 +22,7 @@ export default function SignupPage() {
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError("");
-        setSubmitting(true);
-
+        setError(null);
         try {
             await signup({
                 fullname: fullname.trim(),
@@ -34,11 +31,8 @@ export default function SignupPage() {
                 password,
                 role,
             });
-            navigate("/login", { replace: true });
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Sign up failed");
-        } finally {
-            setSubmitting(false);
+            setError(err instanceof Error ? err.message : "Signup failed");
         }
     };
 
@@ -114,11 +108,9 @@ export default function SignupPage() {
                         </select>
                     </div>
 
-                    {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                    <Button type="submit" className="h-11 w-full rounded-xl">Create account</Button>
 
-                    <Button type="submit" className="h-11 w-full rounded-xl" disabled={submitting}>
-                        {submitting ? "Creating account..." : "Create account"}
-                    </Button>
+                    {error && <p className="text-sm text-destructive">{error}</p>}
 
                     <p className="text-sm text-muted-foreground">
                         Already have an account? <Link className="font-semibold text-primary hover:underline" to="/login">Log in</Link>

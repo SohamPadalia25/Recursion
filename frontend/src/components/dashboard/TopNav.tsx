@@ -4,8 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 
 export function TopNav() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const initials = user?.name ? user.name.slice(0, 2).toUpperCase() : "U";
 
   return (
     <motion.header
@@ -17,7 +18,7 @@ export function TopNav() {
       {/* Greeting */}
       <div>
         <h1 className="text-lg font-semibold text-foreground leading-tight">
-          Good morning, Arjun 👋
+          Good morning, {user?.name ? user.name.split(" ")[0] : "there"} 👋
         </h1>
         <p className="text-sm text-muted-foreground">
           You have 3 lessons today
@@ -39,9 +40,13 @@ export function TopNav() {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-dei-peach rounded-full" />
         </button>
 
-        <button className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-muted/60 transition-colors">
+        <button
+          onClick={() => navigate("/profile")}
+          className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-muted/60 transition-colors"
+          title="Open profile"
+        >
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-dei-peach to-dei-rose flex items-center justify-center">
-            <span className="text-xs font-bold text-primary-foreground">AK</span>
+            <span className="text-xs font-bold text-primary-foreground">{initials}</span>
           </div>
           <ChevronDown className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
         </button>

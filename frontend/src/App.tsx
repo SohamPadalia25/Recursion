@@ -27,6 +27,7 @@ import StudentMyNotesPage from "./pages/student/MyNotes";
 import StudentInstructorVideoCallPage from "./pages/StudentInstructorVideoCall";
 import InstructorLiveSessionPage from "./pages/InstructorLiveSession";
 import StudentJoinSessionPage from "./pages/StudentJoinSession";
+import ProfilePage from "./pages/Profile";
 import InstructorDashboardPage from "./pages/instructor/Dashboard";
 import InstructorCourseBuilderPage from "./pages/instructor/CourseBuilder";
 import InstructorTeachingToolsPage from "./pages/instructor/TeachingTools";
@@ -52,6 +53,15 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/verify" element={<VerifyCertificatePage />} />
+
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="/student"

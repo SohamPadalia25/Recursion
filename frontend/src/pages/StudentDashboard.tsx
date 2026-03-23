@@ -7,6 +7,8 @@ import { LearningPlan } from "@/components/dashboard/LearningPlan";
 import { EventsPanel } from "@/components/dashboard/EventsPanel";
 import { ProgressChart } from "@/components/dashboard/ProgressChart";
 import { AIBuddy } from "@/components/dashboard/AIBuddy";
+import { TrendingCourses } from "@/components/dashboard/TrendingCourses";
+import { MyLearningBadges } from "@/components/dashboard/MyLearningBadges";
 import { Button } from "@/components/ui/button";
 import { verifyCompletion } from "@/lib/certificate-api";
 import { useAuth } from "@/auth/AuthContext";
@@ -134,49 +136,12 @@ const StudentDashboard = () => {
             <StatsPanel />
           </div>
 
-          <div className="mb-6 rounded-2xl border border-border bg-card p-4 md:p-5">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-base font-semibold text-foreground">My Course Snapshot</h3>
-              <Button variant="outline" size="sm" onClick={() => navigate("/student/courses")}>Open courses</Button>
-            </div>
+          <div className="mb-6">
+            <MyLearningBadges />
+          </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-border p-3">
-                <p className="text-xs text-muted-foreground">Enrolled</p>
-                <p className="mt-1 text-2xl font-semibold text-foreground">{summary.totalCourses}</p>
-              </div>
-              <div className="rounded-xl border border-border p-3">
-                <p className="text-xs text-muted-foreground">Completed</p>
-                <p className="mt-1 text-2xl font-semibold text-foreground">{summary.completedCourses}</p>
-              </div>
-              <div className="rounded-xl border border-border p-3">
-                <p className="text-xs text-muted-foreground">Average progress</p>
-                <p className="mt-1 text-2xl font-semibold text-foreground">{summary.avgCompletion}%</p>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {loadingCourses ? (
-                <p className="text-sm text-muted-foreground">Loading enrolled courses...</p>
-              ) : myLearning.length ? (
-                myLearning.slice(0, 4).map((entry) => (
-                  <button
-                    key={entry._id}
-                    type="button"
-                    onClick={() => navigate(`/student/course/${entry.course?._id}`)}
-                    className="flex w-full items-center justify-between rounded-xl border border-border p-3 text-left hover:bg-muted/40"
-                  >
-                    <div>
-                      <p className="font-medium text-foreground">{entry.course?.title || "Untitled course"}</p>
-                      <p className="text-xs text-muted-foreground">{entry.course?.category || "General"}</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{entry.completionPercentage || 0}%</p>
-                  </button>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No enrolled courses yet.</p>
-              )}
-            </div>
+          <div className="mb-6">
+            <TrendingCourses />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
