@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { Video, BookOpenCheck, ClipboardList, ArrowRight } from "lucide-react";
+import { LiveSessionButton } from "./LiveSessionButton";
 
 interface Event {
   id: number;
@@ -34,7 +35,9 @@ const item = {
 
 export function EventsPanel() {
   return (
-    <div>
+    <div className="space-y-4">
+      <LiveSessionButton />
+
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-lg font-semibold text-foreground">Upcoming</h2>
         <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">

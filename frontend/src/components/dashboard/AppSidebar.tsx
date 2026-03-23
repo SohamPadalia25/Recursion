@@ -13,6 +13,7 @@ import {
   Sparkles,
   Trophy,
   LogOut,
+  FileText,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 
@@ -23,7 +24,6 @@ const navItems = [
   { icon: Calendar, label: "Lecture", to: "/student/lecture" },
   { icon: Trophy, label: "Certificates", to: "/student/certificates" },
   { icon: MessageSquare, label: "Practice", to: "/student/practice" },
-  { icon: Network, label: "Roadmap", to: "/student/roadmap" },
   { icon: Sparkles, label: "AI Tools", to: "/student/tools" },
 ];
 
@@ -70,8 +70,6 @@ export function AppSidebar() {
             ? location.pathname === "/student"
             : item.to === "/student/courses"
               ? location.pathname.startsWith(item.to) || isCourseDetail
-              : item.to === "/student/roadmap"
-                ? location.pathname.startsWith(item.to) || isRoadmapCourse
               : location.pathname.startsWith(item.to);
 
           return (

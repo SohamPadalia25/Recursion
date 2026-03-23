@@ -6,6 +6,7 @@ import { EventsPanel } from "@/components/dashboard/EventsPanel";
 import { ProgressChart } from "@/components/dashboard/ProgressChart";
 import { AIBuddy } from "@/components/dashboard/AIBuddy";
 import { TrendingCourses } from "@/components/dashboard/TrendingCourses";
+import { JoinLiveSessionButton } from "@/components/dashboard/JoinLiveSessionButton";
 
 const StudentDashboard = () => {
   return (
@@ -16,6 +17,10 @@ const StudentDashboard = () => {
         <TopNav />
 
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <div className="mb-4">
+            <JoinLiveSessionButton />
+          </div>
+
           <div className="mb-6">
             <StatsPanel />
           </div>
