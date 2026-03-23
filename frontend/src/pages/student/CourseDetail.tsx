@@ -5,9 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
     checkEnrollmentStatus,
+    createCourseReview,
+    deleteCourseReview,
+    getCourseReviews,
     enrollInCourse,
     getCourseDetail,
     getCourseProgress,
+    type CourseReview,
     type CourseProgress,
 } from "@/lib/course-api";
 import { studentNav } from "../roleNav";
@@ -21,6 +25,13 @@ export default function StudentCourseDetailPage() {
     const [courseData, setCourseData] = useState<Awaited<ReturnType<typeof getCourseDetail>> | null>(null);
     const [isEnrolled, setIsEnrolled] = useState(false);
     const [progress, setProgress] = useState<CourseProgress | null>(null);
+    const [reviews, setReviews] = useState<CourseReview[]>([]);
+    const [reviewsTotal, setReviewsTotal] = useState(0);
+    const [reviewsLoading, setReviewsLoading] = useState(false);
+    const [submittingReview, setSubmittingReview] = useState(false);
+    const [deletingReview, setDeletingReview] = useState(false);
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState("");
 
     useEffect(() => {
         let mounted = true;
@@ -65,6 +76,34 @@ export default function StudentCourseDetailPage() {
         };
     }, [courseId]);
 
+    useEffect(() => {
+        if (!courseId) return;
+
+        let mounted = true;
+
+        const loadReviews = async () => {
+            setReviewsLoading(true);
+            try {
+                const data = await getCourseReviews(courseId, 1, 20);
+                if (!mounted) return;
+                setReviews(data.reviews || []);
+                setReviewsTotal(data.total || 0);
+            } catch {
+                if (!mounted) return;
+                setReviews([]);
+                setReviewsTotal(0);
+            } finally {
+                if (mounted) setReviewsLoading(false);
+            }
+        };
+
+        loadReviews();
+
+        return () => {
+            mounted = false;
+        };
+    }, [courseId]);
+
     const lessonCount = useMemo(() => {
         return (courseData?.modules || []).reduce((total, mod) => total + (mod.lessons?.length || 0), 0);
     }, [courseData]);
@@ -84,6 +123,43 @@ export default function StudentCourseDetailPage() {
             setError(err instanceof Error ? err.message : "Enrollment failed");
         } finally {
             setEnrolling(false);
+        }
+    };
+
+    const refreshReviews = async () => {
+        if (!courseId) return;
+        const data = await getCourseReviews(courseId, 1, 20);
+        setReviews(data.reviews || []);
+        setReviewsTotal(data.total || 0);
+    };
+
+    const handleReviewSubmit = async () => {
+        if (!courseId) return;
+
+        setSubmittingReview(true);
+        setError("");
+        try {
+            await createCourseReview(courseId, reviewRating, reviewComment.trim());
+            setReviewComment("");
+            await refreshReviews();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to submit review");
+        } finally {
+            setSubmittingReview(false);
+        }
+    };
+
+    const handleReviewDelete = async () => {
+        if (!courseId) return;
+        setDeletingReview(true);
+        setError("");
+        try {
+            await deleteCourseReview(courseId);
+            await refreshReviews();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to delete review");
+        } finally {
+            setDeletingReview(false);
         }
     };
 
@@ -167,6 +243,68 @@ export default function StudentCourseDetailPage() {
                                     </AccordionItem>
                                 ))}
                             </Accordion>
+                        </div>
+                    </article>
+
+                    <article className="rounded-2xl border border-border bg-card p-6">
+                        <div className="flex items-center justify-between gap-3">
+                            <h2 className="text-lg font-semibold text-foreground">Reviews</h2>
+                            <p className="text-sm text-muted-foreground">{reviewsTotal} total</p>
+                        </div>
+
+                        {isEnrolled ? (
+                            <div className="mt-4 rounded-xl border border-border/70 p-4">
+                                <p className="text-sm font-medium text-foreground">Share your review</p>
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                    <label className="text-sm text-muted-foreground">Rating</label>
+                                    <select
+                                        value={reviewRating}
+                                        onChange={(e) => setReviewRating(Number(e.target.value))}
+                                        className="h-9 rounded-lg border border-border bg-background px-2 text-sm"
+                                    >
+                                        {[5, 4, 3, 2, 1].map((n) => (
+                                            <option key={n} value={n}>{n}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <textarea
+                                    value={reviewComment}
+                                    onChange={(e) => setReviewComment(e.target.value)}
+                                    rows={3}
+                                    placeholder="Write your review..."
+                                    className="mt-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                                />
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                    <Button size="sm" onClick={handleReviewSubmit} disabled={submittingReview}>
+                                        {submittingReview ? "Saving..." : "Submit / Update Review"}
+                                    </Button>
+                                    <Button size="sm" variant="outline" onClick={handleReviewDelete} disabled={deletingReview}>
+                                        {deletingReview ? "Deleting..." : "Delete My Review"}
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <p className="mt-4 text-sm text-muted-foreground">Enroll in this course to add your review.</p>
+                        )}
+
+                        <div className="mt-4 space-y-3">
+                            {reviewsLoading ? (
+                                <p className="text-sm text-muted-foreground">Loading reviews...</p>
+                            ) : reviews.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No reviews yet.</p>
+                            ) : (
+                                reviews.map((review) => (
+                                    <div key={review._id} className="rounded-lg border border-border/70 p-3">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-sm font-medium text-foreground">{review.student?.fullname || "Student"}</p>
+                                            <p className="text-xs text-muted-foreground">{review.rating}/5</p>
+                                        </div>
+                                        {review.comment ? (
+                                            <p className="mt-2 text-sm text-muted-foreground">{review.comment}</p>
+                                        ) : null}
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </article>
                 </section>

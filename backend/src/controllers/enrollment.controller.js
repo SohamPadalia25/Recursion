@@ -5,6 +5,34 @@ import { Enrollment } from '../models/enrollment.model.js';
 import { Course } from '../models/course.model.js';
 import { Progress } from '../models/progress.model.js';
 import { Lesson } from '../models/lesson.model.js';
+import mongoose from 'mongoose';
+
+const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const buildTitleSearchRegex = (identifier = "") => {
+    const tokens = String(identifier)
+        .trim()
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean)
+        .map((t) => escapeRegex(t));
+
+    if (!tokens.length) return null;
+    return new RegExp(tokens.join('.*'), 'i');
+};
+
+const resolveCourseByIdentifier = async (courseIdentifier) => {
+    if (!courseIdentifier) return null;
+
+    if (mongoose.isValidObjectId(courseIdentifier)) {
+        return Course.findById(courseIdentifier);
+    }
+
+    const titleRegex = buildTitleSearchRegex(courseIdentifier);
+    if (!titleRegex) return null;
+
+    return Course.findOne({ title: { $regex: titleRegex } });
+};
 
 // ─── ENROLL IN COURSE ───────────────────────────────────────
 // POST /api/v1/enrollments
@@ -13,8 +41,10 @@ const enrollInCourse = asyncHandler(async (req, res) => {
 
     if (!courseId) throw new ApiError(400, "courseId is required");
 
-    const course = await Course.findById(courseId);
+    const course = await resolveCourseByIdentifier(courseId);
     if (!course) throw new ApiError(404, "Course not found");
+
+    const resolvedCourseId = course._id;
 
     if (course.status !== "published" || !course.isApproved) {
         throw new ApiError(400, "This course is not available for enrollment");
@@ -23,20 +53,20 @@ const enrollInCourse = asyncHandler(async (req, res) => {
     // prevent duplicate enrollment
     const existing = await Enrollment.findOne({
         student: req.user._id,
-        course: courseId,
+        course: resolvedCourseId,
     });
 
     if (existing) throw new ApiError(409, "Already enrolled in this course");
 
     const enrollment = await Enrollment.create({
         student: req.user._id,
-        course: courseId,
+        course: resolvedCourseId,
         studyGoal: studyGoal || "",
         deadline: deadline ? new Date(deadline) : null,
     });
 
     // increment course enrollment count
-    await Course.findByIdAndUpdate(courseId, {
+    await Course.findByIdAndUpdate(resolvedCourseId, {
         $inc: { enrollmentCount: 1 },
     });
 
@@ -84,9 +114,19 @@ const getCourseStudents = asyncHandler(async (req, res) => {
 const checkEnrollment = asyncHandler(async (req, res) => {
     const { courseId } = req.params;
 
+    const course = await resolveCourseByIdentifier(courseId);
+    if (!course) {
+        return res.status(200).json(
+            new ApiResponse(200, {
+                isEnrolled: false,
+                enrollment: null,
+            }, "Enrollment status fetched")
+        );
+    }
+
     const enrollment = await Enrollment.findOne({
         student: req.user._id,
-        course: courseId,
+        course: course._id,
     });
 
     return res.status(200).json(
@@ -102,16 +142,19 @@ const checkEnrollment = asyncHandler(async (req, res) => {
 const unenroll = asyncHandler(async (req, res) => {
     const { courseId } = req.params;
 
+    const course = await resolveCourseByIdentifier(courseId);
+    if (!course) throw new ApiError(404, "Course not found");
+
     const enrollment = await Enrollment.findOne({
         student: req.user._id,
-        course: courseId,
+        course: course._id,
     });
 
     if (!enrollment) throw new ApiError(404, "Enrollment not found");
 
     await Enrollment.findByIdAndDelete(enrollment._id);
 
-    await Course.findByIdAndUpdate(courseId, {
+    await Course.findByIdAndUpdate(course._id, {
         $inc: { enrollmentCount: -1 },
     });
 

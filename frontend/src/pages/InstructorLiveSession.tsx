@@ -17,6 +17,9 @@ import { io } from "socket.io-client";
 import * as TwilioVideo from "twilio-video";
 import { useAuth } from "@/auth/AuthContext";
 import { sendLiveSessionInvites } from "@/lib/mailer-api";
+import { LiveMap } from "@liveblocks/client";
+import Whiteboard from "@/components/Whiteboard";
+import { RoomProvider } from "@/liveblocks.config";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_BASE_URL || "http://localhost:8000";
 const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
@@ -662,6 +665,29 @@ const InstructorLiveSession = () => {
 
           {inviteError && <p className="mt-2 text-xs text-red-600">{inviteError}</p>}
         </motion.div>
+
+        {roomName && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-8"
+          >
+            <h2 className="text-lg font-bold text-foreground mb-4">Interactive Whiteboard</h2>
+            <div
+              className="rounded-xl overflow-hidden shadow-lg border border-border bg-background"
+              style={{ height: "500px" }}
+            >
+              <RoomProvider
+                id={roomName}
+                initialPresence={{ selectedShape: null }}
+                initialStorage={{ shapes: new LiveMap() }}
+              >
+                <Whiteboard />
+              </RoomProvider>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

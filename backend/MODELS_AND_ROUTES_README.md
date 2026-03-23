@@ -656,11 +656,15 @@ Mounted base: `/api`
 - Primary models: Course graph hierarchy models (Course/Module/Topic/Subtopic/Lesson, controller-driven).
 
 ## `certificate.routes.js` (mounted)
-Mounted base: `/api`
+Mounted base: `/api` and `/api/v1`
 - `POST /api/verify-completion/:courseId`
 - `POST /api/certificate/issue`
 - `GET /api/certificate/verify/:hash`
 - `GET /api/certificate/course/:courseId`
+- `POST /api/v1/verify-completion/:courseId`
+- `POST /api/v1/certificate/issue`
+- `GET /api/v1/certificate/verify/:hash`
+- `GET /api/v1/certificate/course/:courseId`
 - Primary model: Certificate (+ Enrollment/Course/User validation in controller).
 
 ## `notes.routes.js` (mounted)
@@ -683,7 +687,9 @@ Mounted base: `/api/v1/video`
 ## `mailer.routes.js` (mounted)
 Mounted base: `/api`
 - `POST /api/v1/mailer/send`
-- Sends generic or OTP mail.
+- `POST /api/v1/mailer/send-whatsapp`
+- `POST /api/v1/mailer/send-live-session-invite`
+- Sends generic mail, OTP mail, WhatsApp messages, and combined live-session invites.
 - Primary model impact: none directly (service route).
 
 ---
@@ -715,4 +721,4 @@ Mounted base: `/api`
 ## 5) Notes for Maintenance
 
 - There are naming inconsistencies in some files (`course.controlller.js`, `Aitutorchat.model.js` vs `aiTutorChat.model.js` import casing in one route file).
-- `src/routes/user.routes.js`, `course.routes.js`, `module.routes.js`, `lesson.routes.js`, `ai.routes.js`, `courseGeneration.routes.js`, and `other.routes.js` are currently not mounted in `src/app.js`; add mounts if these APIs should be live.
+- Route mounting is currently active in `src/app.js` for users, courses, modules, lessons, AI, course-generation, enrollment/progress/discussion/review/notification/admin, notes, video, mailer, graph, and certificates.

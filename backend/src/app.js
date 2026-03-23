@@ -58,6 +58,7 @@ app.use(cookieParser());
 
 app.use("/api", graphRoutes);
 app.use("/api", certificateRoutes);
+app.use("/api/v1", certificateRoutes);
 app.use("/api/v1/video", videoCallRoutes);
 app.use("/api/v1/notes", notesRoutes);
 app.use("/api", mailerRoutes);
