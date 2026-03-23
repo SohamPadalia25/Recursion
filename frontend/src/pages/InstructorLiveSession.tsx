@@ -7,14 +7,25 @@ import {
   PhoneOff,
   Copy,
   Check,
+  Mail,
+  MessageSquare,
+  Send,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import * as TwilioVideo from "twilio-video";
+import { useAuth } from "@/auth/AuthContext";
+import { sendLiveSessionInvites } from "@/lib/mailer-api";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_BASE_URL || "http://localhost:8000";
 const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+const TWILIO_REGION_FALLBACKS = [
+  import.meta.env.VITE_TWILIO_VIDEO_REGION,
+  "in1",
+  "sg1",
+  "gll",
+].filter((value, idx, arr): value is string => Boolean(value) && arr.indexOf(value) === idx);
 
 type StoredUser = {
   _id: string;
@@ -24,6 +35,7 @@ type StoredUser = {
 
 const InstructorLiveSession = () => {
   const navigate = useNavigate();
+  const { user: authUser } = useAuth();
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [roomName, setRoomName] = useState("");
@@ -32,13 +44,62 @@ const InstructorLiveSession = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [inviteEmails, setInviteEmails] = useState("");
+  const [invitePhones, setInvitePhones] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const [inviteStatus, setInviteStatus] = useState("");
 
   const socketRef = useRef<any>(null);
   const roomRef = useRef<any>(null);
   const localVideoRef = useRef<HTMLDivElement | null>(null);
 
+  const connectToRoom = async (token: string, room: string) => {
+    let lastError: any = null;
+
+    for (const region of TWILIO_REGION_FALLBACKS) {
+      try {
+        const connected = await TwilioVideo.connect(token, {
+          name: room,
+          audio: true,
+          video: { width: 640, height: 480 },
+          region,
+        });
+        return connected;
+      } catch (err) {
+        lastError = err;
+        console.warn(`Twilio connect failed for region ${region}:`, err);
+      }
+    }
+
+    throw lastError || new Error("Unable to connect to Twilio room");
+  };
+
+  const getAccessToken = () => {
+    if (authUser?.accessToken) return authUser.accessToken;
+
+    try {
+      const raw = localStorage.getItem("dei-auth-user");
+      if (!raw) return "";
+      const parsed = JSON.parse(raw) as { accessToken?: string };
+      return parsed?.accessToken || "";
+    } catch {
+      return "";
+    }
+  };
+
   // Load current user
   useEffect(() => {
+    if (authUser?._id) {
+      setCurrentUser({
+        _id: authUser._id,
+        name: authUser.name,
+        role: authUser.role,
+      });
+      return;
+    }
+
     let rawUser = localStorage.getItem("user");
     console.log("Loading user from localStorage:", rawUser);
     
@@ -70,7 +131,7 @@ const InstructorLiveSession = () => {
       localStorage.setItem("user", JSON.stringify(testInstructor));
       setCurrentUser(testInstructor);
     }
-  }, []);
+  }, [authUser]);
 
   const generateRoomName = () => {
     const timestamp = Date.now();
@@ -79,6 +140,14 @@ const InstructorLiveSession = () => {
   };
 
   const getCurrentUser = (): StoredUser | null => {
+    if (authUser?._id) {
+      return {
+        _id: authUser._id,
+        name: authUser.name,
+        role: authUser.role,
+      };
+    }
+
     try {
       const rawUser = localStorage.getItem("user");
       if (!rawUser) return null;
@@ -131,12 +200,8 @@ const InstructorLiveSession = () => {
         throw new Error(tokenResponse.error || "Failed to get token");
       }
 
-      // Connect to Twilio Video room
-      const room = await TwilioVideo.connect(tokenResponse.token, {
-        name: newRoomName,
-        audio: true,
-        video: { width: 640, height: 480 },
-      });
+      // Connect to Twilio Video room with region fallback retries.
+      const room = await connectToRoom(tokenResponse.token, newRoomName);
 
       roomRef.current = room;
 
@@ -164,6 +229,8 @@ const InstructorLiveSession = () => {
         errorMessage = `❌ Cannot connect to backend server. Make sure the backend is running at http://localhost:8000`;
       } else if (err.message.includes("Backend error")) {
         errorMessage = `❌ Backend API error: ${err.message}. Check if video endpoint is working.`;
+      } else if (err.message?.toLowerCase().includes("signaling")) {
+        errorMessage = `❌ Twilio signaling failed${err.code ? ` (code ${err.code})` : ""}. Check internet/firewall and verify Twilio project + API key belong to the same account.`;
       } else {
         errorMessage = err.message || errorMessage;
       }
@@ -233,6 +300,61 @@ const InstructorLiveSession = () => {
     navigator.clipboard.writeText(roomName);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const parseCsv = (value: string) =>
+    value
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+  const sendInvites = async () => {
+    setInviteError("");
+    setInviteStatus("");
+
+    if (!roomName) {
+      setInviteError("Start a live session first to get a room code.");
+      return;
+    }
+
+    const token = getAccessToken();
+    if (!token) {
+      setInviteError("Missing auth token. Please login again as instructor.");
+      return;
+    }
+
+    const emails = parseCsv(inviteEmails);
+    const phones = parseCsv(invitePhones);
+
+    if (emails.length === 0 && phones.length === 0) {
+      setInviteError("Add at least one email or phone recipient.");
+      return;
+    }
+
+    setInviteLoading(true);
+    try {
+      const result = await sendLiveSessionInvites(token, {
+        roomCode: roomName,
+        emails,
+        phones,
+        customMessage: inviteMessage.trim() || undefined,
+        instructorName: currentUser?.name || authUser?.name,
+      });
+
+      setInviteStatus(
+        `Invites sent: ${result.sentCount} | Email: ${result.sentEmails.length}, WhatsApp: ${result.sentWhatsApp.length}`,
+      );
+
+      if (result.failedEmails.length || result.failedWhatsApp.length) {
+        setInviteError(
+          `Some invites failed (email: ${result.failedEmails.length}, WhatsApp: ${result.failedWhatsApp.length}).`,
+        );
+      }
+    } catch (err: any) {
+      setInviteError(err?.message || "Failed to send invites");
+    } finally {
+      setInviteLoading(false);
+    }
   };
 
   // Initialize Socket.io
@@ -321,8 +443,9 @@ const InstructorLiveSession = () => {
                   <p>1. Make sure backend is running:</p>
                   <code className="bg-black/20 px-2 py-1 rounded block my-1">cd backend && npm run dev</code>
                   <p>2. Check that backend is at <span className="font-mono">http://localhost:8000</span></p>
-                  <p>3. Verify Twilio credentials in <span className="font-mono">backend/.env</span></p>
-                  <p>4. Check browser console (F12) for more details</p>
+                  <p>3. Verify Twilio credentials in <span className="font-mono">backend/.env</span> are from the same Twilio account</p>
+                  <p>4. If message says signaling error, try another network / disable VPN / allow websocket traffic</p>
+                  <p>5. Check browser console (F12) for more details</p>
                 </div>
               </details>
             </motion.div>
@@ -499,6 +622,70 @@ const InstructorLiveSession = () => {
           <p className="text-sm text-muted-foreground">
             Share the session code <span className="font-mono font-bold text-dei-sky">{roomName}</span> with your students. They can join from their dashboard.
           </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="mt-4 dei-card p-4"
+        >
+          <h3 className="font-semibold text-foreground mb-3 inline-flex items-center gap-2">
+            <Send className="w-4 h-4 text-dei-sky" />
+            Share Session Code via Email & WhatsApp
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-muted-foreground inline-flex items-center gap-1.5 mb-1.5">
+                <Mail className="w-3.5 h-3.5" />
+                Student emails (comma separated)
+              </label>
+              <input
+                value={inviteEmails}
+                onChange={(e) => setInviteEmails(e.target.value)}
+                placeholder="student1@email.com, student2@email.com"
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none ring-primary/30 focus:ring-2"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs text-muted-foreground inline-flex items-center gap-1.5 mb-1.5">
+                <MessageSquare className="w-3.5 h-3.5" />
+                WhatsApp numbers (comma separated)
+              </label>
+              <input
+                value={invitePhones}
+                onChange={(e) => setInvitePhones(e.target.value)}
+                placeholder="9198XXXXXXXX, 447XXXXXXXXX"
+                className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none ring-primary/30 focus:ring-2"
+              />
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <label className="text-xs text-muted-foreground mb-1.5 block">Optional note</label>
+            <textarea
+              value={inviteMessage}
+              onChange={(e) => setInviteMessage(e.target.value)}
+              placeholder="Class starts in 5 minutes. Please join on time."
+              rows={2}
+              className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none ring-primary/30 focus:ring-2"
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              onClick={sendInvites}
+              disabled={inviteLoading}
+              className="px-4 py-2 rounded-lg bg-dei-sky text-white font-semibold hover:bg-dei-sky/90 transition-all disabled:opacity-60"
+            >
+              {inviteLoading ? "Sending..." : "Send Invites"}
+            </button>
+            {inviteStatus && <p className="text-xs text-dei-sage font-medium">{inviteStatus}</p>}
+          </div>
+
+          {inviteError && <p className="mt-2 text-xs text-red-600">{inviteError}</p>}
         </motion.div>
       </div>
     </div>
