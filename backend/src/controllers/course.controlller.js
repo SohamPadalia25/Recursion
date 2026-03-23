@@ -46,6 +46,54 @@ const createCourse = asyncHandler(async (req, res) => {
 
     const modules = parseModules(modulesInput);
 
+    if (!modules.length) {
+        throw new ApiError(400, "Add at least one module before creating a course");
+    }
+
+    const normalizeModules = modules.map((moduleData = {}, moduleIndex) => {
+        const moduleTitle = String(moduleData.title || "").trim();
+        const moduleDescription = String(moduleData.description || "").trim();
+
+        if (!moduleTitle) {
+            throw new ApiError(400, `Module title is required at position ${moduleIndex + 1}`);
+        }
+
+        const lessons = Array.isArray(moduleData.lessons) ? moduleData.lessons : [];
+        if (!lessons.length) {
+            throw new ApiError(400, `Add at least one lesson to module ${moduleIndex + 1}`);
+        }
+
+        const normalizedLessons = lessons.map((lessonData = {}, lessonIndex) => {
+            const lessonTitle = String(lessonData.title || "").trim();
+            const lessonDescription = String(lessonData.description || "").trim();
+            const lessonVideoUrl = String(lessonData.videoUrl || "").trim();
+            const lessonDuration = Number(lessonData.duration || 0);
+
+            if (!lessonTitle) {
+                throw new ApiError(400, `Lesson title is required at module ${moduleIndex + 1}, lesson ${lessonIndex + 1}`);
+            }
+
+            if (!lessonVideoUrl) {
+                throw new ApiError(400, `Lesson videoUrl is required at module ${moduleIndex + 1}, lesson ${lessonIndex + 1}`);
+            }
+
+            return {
+                title: lessonTitle,
+                description: lessonDescription,
+                videoUrl: lessonVideoUrl,
+                duration: Number.isFinite(lessonDuration) && lessonDuration > 0 ? lessonDuration : 0,
+                isFree: lessonData.isFree === true || lessonData.isFree === "true",
+            };
+        });
+
+        return {
+            title: moduleTitle,
+            description: moduleDescription,
+            prerequisiteModule: moduleData.prerequisiteModule || null,
+            lessons: normalizedLessons,
+        };
+    });
+
     const course = await Course.create({
         title,
         description,
@@ -60,17 +108,11 @@ const createCourse = asyncHandler(async (req, res) => {
         isApproved: false,
     });
 
-    if (modules.length > 0) {
-        for (let moduleIndex = 0; moduleIndex < modules.length; moduleIndex += 1) {
-            const moduleData = modules[moduleIndex] || {};
-            const moduleTitle = (moduleData.title || "").trim();
-
-            if (!moduleTitle) {
-                throw new ApiError(400, `Module title is required at position ${moduleIndex + 1}`);
-            }
-
+    if (normalizeModules.length > 0) {
+        for (let moduleIndex = 0; moduleIndex < normalizeModules.length; moduleIndex += 1) {
+            const moduleData = normalizeModules[moduleIndex];
             const createdModule = await Module.create({
-                title: moduleTitle,
+                title: moduleData.title,
                 description: moduleData.description || "",
                 course: course._id,
                 order: moduleIndex + 1,
@@ -78,29 +120,17 @@ const createCourse = asyncHandler(async (req, res) => {
                 isLocked: Boolean(moduleData.prerequisiteModule),
             });
 
-            const lessons = Array.isArray(moduleData.lessons) ? moduleData.lessons : [];
-            for (let lessonIndex = 0; lessonIndex < lessons.length; lessonIndex += 1) {
-                const lessonData = lessons[lessonIndex] || {};
-                const lessonTitle = (lessonData.title || "").trim();
-                const lessonVideoUrl = (lessonData.videoUrl || "").trim();
-
-                if (!lessonTitle) {
-                    throw new ApiError(400, `Lesson title is required at module ${moduleIndex + 1}, lesson ${lessonIndex + 1}`);
-                }
-
-                if (!lessonVideoUrl) {
-                    throw new ApiError(400, `Lesson videoUrl is required at module ${moduleIndex + 1}, lesson ${lessonIndex + 1}`);
-                }
-
+            for (let lessonIndex = 0; lessonIndex < moduleData.lessons.length; lessonIndex += 1) {
+                const lessonData = moduleData.lessons[lessonIndex];
                 await Lesson.create({
-                    title: lessonTitle,
-                    description: lessonData.description || "",
+                    title: lessonData.title,
+                    description: lessonData.description,
                     module: createdModule._id,
                     course: course._id,
-                    videoUrl: lessonVideoUrl,
-                    duration: Number(lessonData.duration || 0),
+                    videoUrl: lessonData.videoUrl,
+                    duration: lessonData.duration,
                     order: lessonIndex + 1,
-                    isFree: lessonData.isFree === true || lessonData.isFree === "true",
+                    isFree: lessonData.isFree,
                 });
             }
         }
@@ -239,10 +269,33 @@ const deleteCourse = asyncHandler(async (req, res) => {
 const getMyCoursesAsInstructor = asyncHandler(async (req, res) => {
     const courses = await Course.find({ instructor: req.user._id })
         .select("-__v")
-        .sort({ createdAt: -1 });
+        .sort({ createdAt: -1 })
+        .lean();
+
+    const courseIds = courses.map((course) => course._id);
+
+    const [moduleCounts, lessonCounts] = await Promise.all([
+        Module.aggregate([
+            { $match: { course: { $in: courseIds } } },
+            { $group: { _id: "$course", count: { $sum: 1 } } },
+        ]),
+        Lesson.aggregate([
+            { $match: { course: { $in: courseIds } } },
+            { $group: { _id: "$course", count: { $sum: 1 } } },
+        ]),
+    ]);
+
+    const moduleCountMap = new Map(moduleCounts.map((item) => [String(item._id), item.count]));
+    const lessonCountMap = new Map(lessonCounts.map((item) => [String(item._id), item.count]));
+
+    const coursesWithStructure = courses.map((course) => ({
+        ...course,
+        moduleCount: moduleCountMap.get(String(course._id)) || 0,
+        lessonCount: lessonCountMap.get(String(course._id)) || 0,
+    }));
 
     return res.status(200).json(
-        new ApiResponse(200, courses, "Your courses fetched")
+        new ApiResponse(200, coursesWithStructure, "Your courses fetched")
     );
 });
 
