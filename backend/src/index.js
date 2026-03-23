@@ -1,8 +1,20 @@
 import dotenv from "dotenv"
 import connectDB from "./db/db.js"
 import app from "./app.js"
+import dns from "node:dns"
 
 dotenv.config();
+
+const configuredDnsServers = process.env.DNS_SERVERS
+  ? process.env.DNS_SERVERS.split(",").map((s) => s.trim()).filter(Boolean)
+  : ["8.8.8.8", "1.1.1.1"];
+
+try {
+  dns.setServers(configuredDnsServers);
+  console.log(`Using DNS servers: ${configuredDnsServers.join(", ")}`);
+} catch (error) {
+  console.warn("Could not apply custom DNS servers", error?.message || error);
+}
 
 connectDB()
 .then(()=>{
