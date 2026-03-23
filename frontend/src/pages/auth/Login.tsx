@@ -2,15 +2,16 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { getHomePathByRole, type UserRole, useAuth } from "@/auth/AuthContext";
+import { getHomePathByRole, useAuth } from "@/auth/AuthContext";
 
 export default function LoginPage() {
     const { login, user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
-    const [name, setName] = useState("Arjun Kapoor");
-    const [email, setEmail] = useState("arjun@dei.learn");
-    const [role, setRole] = useState<UserRole>("student");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
 
     useEffect(() => {
         if (user) {
@@ -18,12 +19,21 @@ export default function LoginPage() {
         }
     }, [user, navigate]);
 
-    const onSubmit = (e: React.FormEvent) => {
+    const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        login({ name: name.trim(), email: email.trim(), role });
+        setError("");
+        setSubmitting(true);
 
-        const target = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
-        navigate(target || getHomePathByRole(role), { replace: true });
+        try {
+            await login({ email: email.trim(), password });
+
+            const target = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+            navigate(target || "/student", { replace: true });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Login failed");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -42,17 +52,7 @@ export default function LoginPage() {
                     className="space-y-4 p-6 md:p-8"
                 >
                     <h2 className="text-2xl font-bold text-foreground">Log in</h2>
-                    <p className="text-sm text-muted-foreground">Select your role to enter the correct workspace.</p>
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium">Name</label>
-                        <input
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            className="h-11 w-full rounded-xl bg-muted/50 px-3 outline-none ring-primary/30 transition-all focus:ring-2"
-                        />
-                    </div>
+                    <p className="text-sm text-muted-foreground">Use your backend account credentials.</p>
 
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Email</label>
@@ -66,19 +66,21 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Role</label>
-                        <select
-                            value={role}
-                            onChange={(e) => setRole(e.target.value as UserRole)}
+                        <label className="text-sm font-medium">Password</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             className="h-11 w-full rounded-xl bg-muted/50 px-3 outline-none ring-primary/30 transition-all focus:ring-2"
-                        >
-                            <option value="student">Student</option>
-                            <option value="instructor">Instructor</option>
-                            <option value="admin">Admin</option>
-                        </select>
+                            required
+                        />
                     </div>
 
-                    <Button type="submit" className="h-11 w-full rounded-xl">Continue</Button>
+                    {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+                    <Button type="submit" className="h-11 w-full rounded-xl" disabled={submitting}>
+                        {submitting ? "Signing in..." : "Continue"}
+                    </Button>
 
                     <p className="text-sm text-muted-foreground">
                         New here? <Link className="font-semibold text-primary hover:underline" to="/signup">Create account</Link>

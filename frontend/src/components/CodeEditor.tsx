@@ -15,7 +15,7 @@ const loadAce = async () => {
     script.async = true;
     script.onload = () => {
       aceLoaded = true;
-      resolve(window.ace);
+      resolve((window as any).ace);
     };
     script.onerror = () => reject(new Error("Failed to load ACE editor"));
     document.head.appendChild(script);

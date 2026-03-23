@@ -7,9 +7,13 @@ import { getHomePathByRole, type UserRole, useAuth } from "@/auth/AuthContext";
 export default function SignupPage() {
     const { signup, user } = useAuth();
     const navigate = useNavigate();
-    const [name, setName] = useState("");
+    const [fullname, setFullname] = useState("");
+    const [username, setUsername] = useState("");
     const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
     const [role, setRole] = useState<UserRole>("student");
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
 
     useEffect(() => {
         if (user) {
@@ -17,10 +21,25 @@ export default function SignupPage() {
         }
     }, [user, navigate]);
 
-    const onSubmit = (e: React.FormEvent) => {
+    const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        signup({ name: name.trim(), email: email.trim(), role });
-        navigate(getHomePathByRole(role), { replace: true });
+        setError("");
+        setSubmitting(true);
+
+        try {
+            await signup({
+                fullname: fullname.trim(),
+                username: username.trim(),
+                email: email.trim(),
+                password,
+                role,
+            });
+            navigate("/login", { replace: true });
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Sign up failed");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -43,8 +62,18 @@ export default function SignupPage() {
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Full name</label>
                         <input
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            value={fullname}
+                            onChange={(e) => setFullname(e.target.value)}
+                            required
+                            className="h-11 w-full rounded-xl bg-muted/50 px-3 outline-none ring-primary/30 transition-all focus:ring-2"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Username</label>
+                        <input
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
                             required
                             className="h-11 w-full rounded-xl bg-muted/50 px-3 outline-none ring-primary/30 transition-all focus:ring-2"
                         />
@@ -56,6 +85,17 @@ export default function SignupPage() {
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
+                            required
+                            className="h-11 w-full rounded-xl bg-muted/50 px-3 outline-none ring-primary/30 transition-all focus:ring-2"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Password</label>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             required
                             className="h-11 w-full rounded-xl bg-muted/50 px-3 outline-none ring-primary/30 transition-all focus:ring-2"
                         />
@@ -74,7 +114,11 @@ export default function SignupPage() {
                         </select>
                     </div>
 
-                    <Button type="submit" className="h-11 w-full rounded-xl">Create account</Button>
+                    {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+                    <Button type="submit" className="h-11 w-full rounded-xl" disabled={submitting}>
+                        {submitting ? "Creating account..." : "Create account"}
+                    </Button>
 
                     <p className="text-sm text-muted-foreground">
                         Already have an account? <Link className="font-semibold text-primary hover:underline" to="/login">Log in</Link>
