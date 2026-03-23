@@ -36,7 +36,6 @@ type StoredUser = {
 const InstructorLiveSession = () => {
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
-  const { user: authUser } = useAuth();
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
   const [sessionStarted, setSessionStarted] = useState(false);
   const [roomName, setRoomName] = useState("");
