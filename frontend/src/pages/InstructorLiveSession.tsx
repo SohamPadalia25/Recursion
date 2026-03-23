@@ -14,6 +14,9 @@ import { io } from "socket.io-client";
 import * as TwilioVideo from "twilio-video";
 import { useAuth } from "@/auth/AuthContext";
 import { API_V1_BASE_URL } from "@/lib/api-client";
+import { LiveMap } from "@liveblocks/client";
+import Whiteboard from "@/components/Whiteboard";
+import { RoomProvider } from "../liveblocks.config";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_BASE_URL || "http://localhost:8000";
 const API_URL = API_V1_BASE_URL;
@@ -450,6 +453,27 @@ const InstructorLiveSession = () => {
             Share the session code <span className="font-mono font-bold text-dei-sky">{roomName}</span> with your students. They can join from their dashboard.
           </p>
         </motion.div>
+
+        {/* Whiteboard Section */}
+        {roomName && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-8"
+          >
+            <h2 className="text-lg font-bold text-foreground mb-4">Collaboration Tools</h2>
+            <div className="rounded-xl overflow-hidden shadow-lg border border-border" style={{ height: "500px" }}>
+              <RoomProvider
+                id={roomName}
+                initialPresence={{ selectedShape: null }}
+                initialStorage={{ shapes: new LiveMap() }}
+              >
+                <Whiteboard />
+              </RoomProvider>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

@@ -104,7 +104,7 @@ export function MyLearningBadges() {
                     {b.course?.title ? b.course.title : "Platform"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {b.type.replaceAll("_", " ")}
+                    {b.type.split("_").join(" ")}
                     {b.awardedAt ? ` • ${new Date(b.awardedAt).toLocaleDateString()}` : ""}
                   </p>
                 </div>

@@ -19,6 +19,9 @@ import * as TwilioVideo from "twilio-video";
 import { useAuth } from "@/auth/AuthContext";
 import { API_V1_BASE_URL } from "@/lib/api-client";
 import { getUserDirectory } from "@/lib/user-api";
+import { LiveMap } from "@liveblocks/client";
+import Whiteboard from "@/components/Whiteboard";
+import { RoomProvider } from "../liveblocks.config";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_BASE_URL || "http://localhost:8000";
 const API_URL = API_V1_BASE_URL;
@@ -782,6 +785,46 @@ const StudentInstructorVideoCall = () => {
               </motion.div>
             </div>
           </div>
+        )}
+
+        {/* Full-Width Whiteboard Section - ALWAYS SHOW DURING CALL */}
+        {isCallActive && activeCall?.roomName ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-8 w-full"
+          >
+            <h2 className="text-lg font-bold text-foreground mb-4">📝 Interactive Whiteboard</h2>
+            <div className="rounded-xl overflow-hidden shadow-lg border-2 border-border bg-background w-full" style={{ height: "500px" }}>
+              <RoomProvider
+                id={activeCall.roomName}
+                initialPresence={{ selectedShape: null }}
+                initialStorage={{ shapes: new LiveMap() }}
+              >
+                <Whiteboard />
+              </RoomProvider>
+            </div>
+          </motion.div>
+        ) : (
+          (callStatus === "connecting" || callStatus === "connected") && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="mt-8 w-full"
+            >
+              <h2 className="text-lg font-bold text-foreground mb-4">📝 Interactive Whiteboard</h2>
+              <div className="rounded-xl overflow-hidden shadow-lg border-2 border-border bg-muted/50 w-full flex items-center justify-center" style={{ height: "500px" }}>
+                <div className="text-center text-muted-foreground">
+                  <p className="text-sm">Loading whiteboard...</p>
+                  <p className="text-xs mt-2">
+                    {!activeCall?.roomName ? "Waiting for room..." : "Initializing..."}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )
         )}
       </div>
     </div>

@@ -18,6 +18,9 @@ import { io } from "socket.io-client";
 import * as TwilioVideo from "twilio-video";
 import { useAuth } from "@/auth/AuthContext";
 import { API_V1_BASE_URL } from "@/lib/api-client";
+import { LiveMap } from "@liveblocks/client";
+import Whiteboard from "@/components/Whiteboard";
+import { RoomProvider } from "../liveblocks.config";
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_BASE_URL || "http://localhost:8000";
 const API_URL = API_V1_BASE_URL;
@@ -522,6 +525,30 @@ const StudentJoinSession = () => {
               </motion.div>
             </div>
           </div>
+
+          {/* Whiteboard (student readonly view) */}
+          {selectedRoom && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="mt-8"
+            >
+              <h2 className="text-lg font-bold text-foreground mb-4">Interactive Whiteboard</h2>
+              <div
+                className="rounded-xl overflow-hidden shadow-lg border border-border bg-background"
+                style={{ height: "500px" }}
+              >
+                <RoomProvider
+                  id={selectedRoom}
+                  initialPresence={{ selectedShape: null }}
+                  initialStorage={{ shapes: new LiveMap() }}
+                >
+                  <Whiteboard />
+                </RoomProvider>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
     );
