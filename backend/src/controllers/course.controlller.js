@@ -6,6 +6,34 @@ import { Module } from '../models/module.model.js';
 import { Lesson } from '../models/lesson.model.js';
 import { Enrollment } from '../models/enrollment.model.js';
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
+import mongoose from 'mongoose';
+
+const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const buildTitleSearchRegex = (identifier = "") => {
+    const tokens = String(identifier)
+        .trim()
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(Boolean)
+        .map((t) => escapeRegex(t));
+
+    if (!tokens.length) return null;
+    return new RegExp(tokens.join('.*'), 'i');
+};
+
+const resolveCourseByIdentifier = (courseIdentifier) => {
+    if (!courseIdentifier) return null;
+
+    if (mongoose.isValidObjectId(courseIdentifier)) {
+        return Course.findById(courseIdentifier);
+    }
+
+    const titleRegex = buildTitleSearchRegex(courseIdentifier);
+    if (!titleRegex) return null;
+
+    return Course.findOne({ title: { $regex: titleRegex } });
+};
 
 // ─── CREATE COURSE ──────────────────────────────────────────
 // POST /api/v1/courses
@@ -79,14 +107,16 @@ const getAllCourses = asyncHandler(async (req, res) => {
 const getCourse = asyncHandler(async (req, res) => {
     const { courseId } = req.params;
 
-    const course = await Course.findById(courseId)
+    const course = await resolveCourseByIdentifier(courseId)
         .populate("instructor", "fullname avatar bio");
 
     if (!course) throw new ApiError(404, "Course not found");
 
+    const resolvedCourseId = course._id;
+
     // fetch modules + lessons (structure tree)
-    const modules = await Module.find({ course: courseId }).sort({ order: 1 });
-    const lessons = await Lesson.find({ course: courseId })
+    const modules = await Module.find({ course: resolvedCourseId }).sort({ order: 1 });
+    const lessons = await Lesson.find({ course: resolvedCourseId })
         .select("title duration order module isFree")
         .sort({ order: 1 });
 

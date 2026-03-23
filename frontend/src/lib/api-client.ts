@@ -7,6 +7,7 @@ export type ApiEnvelope<T> = {
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 export const API_V1_BASE_URL = API_BASE_URL.replace(/\/api\/v1\/?$/i, "") + "/api/v1";
+const API_ROOT_BASE_URL = API_BASE_URL.replace(/\/api\/v1\/?$/i, "");
 export const AUTH_STORAGE_KEY = "dei-auth-user";
 export const AUTH_USER_STORAGE_KEY = AUTH_STORAGE_KEY;
 
@@ -52,7 +53,11 @@ type ApiRequestInit = Omit<RequestInit, "body"> & {
 
 export async function apiRequest<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
     const token = localStorage.getItem("dei-auth-access-token") || undefined;
-    const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+    const url = path.startsWith("http")
+        ? path
+        : path.startsWith("/api/")
+            ? `${API_ROOT_BASE_URL}${path}`
+            : `${API_BASE_URL}${path}`;
 
     return apiFetch<T>(url, {
         method: (init.method as ApiFetchOptions["method"]) || "GET",

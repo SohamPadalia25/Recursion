@@ -48,6 +48,20 @@ type ApiEnvelope<T> = {
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_ROOT_BASE_URL = API_BASE_URL.replace(/\/api\/v1\/?$/i, "");
+
+const getAuthHeaders = () => {
+  try {
+    const raw = localStorage.getItem("dei-auth-user");
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as { accessToken?: string };
+    return parsed?.accessToken
+      ? { Authorization: `Bearer ${parsed.accessToken}` }
+      : {};
+  } catch {
+    return {};
+  }
+};
 
 const parseResponse = async <T>(response: Response): Promise<T> => {
   const contentType = response.headers.get("content-type") || "";
@@ -69,10 +83,11 @@ const parseResponse = async <T>(response: Response): Promise<T> => {
 };
 
 export const verifyCompletion = async (courseId: string, userEmail?: string) => {
-  const response = await fetch(`${API_BASE_URL}/api/verify-completion/${courseId}`, {
+  const response = await fetch(`${API_ROOT_BASE_URL}/api/verify-completion/${courseId}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
     },
     credentials: "include",
     body: JSON.stringify({ userEmail }),
@@ -82,10 +97,11 @@ export const verifyCompletion = async (courseId: string, userEmail?: string) => 
 };
 
 export const issueCertificate = async (courseId: string, userEmail?: string) => {
-  const response = await fetch(`${API_BASE_URL}/api/certificate/issue`, {
+  const response = await fetch(`${API_ROOT_BASE_URL}/api/certificate/issue`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
     },
     credentials: "include",
     body: JSON.stringify({ courseId, userEmail }),
@@ -95,7 +111,10 @@ export const issueCertificate = async (courseId: string, userEmail?: string) => 
 };
 
 export const verifyCertificateByHash = async (hash: string) => {
-  const response = await fetch(`${API_BASE_URL}/api/certificate/verify/${hash}`, {
+  const response = await fetch(`${API_ROOT_BASE_URL}/api/certificate/verify/${hash}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
     credentials: "include",
   });
 
@@ -119,7 +138,10 @@ export const verifyCertificateByHash = async (hash: string) => {
 
 export const getCertificateForCourse = async (courseId: string, userEmail?: string) => {
   const query = userEmail ? `?userEmail=${encodeURIComponent(userEmail)}` : "";
-  const response = await fetch(`${API_BASE_URL}/api/certificate/course/${courseId}${query}`, {
+  const response = await fetch(`${API_ROOT_BASE_URL}/api/certificate/course/${courseId}${query}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
     credentials: "include",
   });
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AppFrame } from "@/components/platform/AppFrame";
 import { studentNav } from "../roleNav";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar } from "recharts";
-import { getCourseProgress, getMyLearning } from "@/lib/course-api";
+import { getCourseProgress, getMyEnrollments } from "@/lib/course-api";
 
 export default function StudentProgressPage() {
     const [loading, setLoading] = useState(true);
@@ -13,6 +13,9 @@ export default function StudentProgressPage() {
         completedLessons: 0,
         totalLessons: 0,
         completionPercentage: 0,
+        watchedSeconds: 0,
+        totalWatchableSeconds: 0,
+        watchProgressPercentage: 0,
     });
 
     useEffect(() => {
@@ -23,7 +26,7 @@ export default function StudentProgressPage() {
             setError("");
 
             try {
-                const enrollments = await getMyLearning();
+                const enrollments = await getMyEnrollments();
                 const courseIds = (enrollments || []).map((entry) => entry.course?._id).filter(Boolean);
 
                 const progressList = await Promise.all(
@@ -42,8 +45,20 @@ export default function StudentProgressPage() {
                 const totalLessons = valid.reduce((sum, item) => sum + (item?.totalLessons || 0), 0);
                 const completedLessons = valid.reduce((sum, item) => sum + (item?.completedLessons || 0), 0);
                 const completionPercentage = totalLessons ? Math.round((completedLessons / totalLessons) * 100) : 0;
+                const watchedSeconds = valid.reduce((sum, item) => sum + Number(item?.watchedSeconds || 0), 0);
+                const totalWatchableSeconds = valid.reduce((sum, item) => sum + Number(item?.totalLessonDurationSeconds || 0), 0);
+                const watchProgressPercentage = totalWatchableSeconds
+                    ? Math.round((watchedSeconds / totalWatchableSeconds) * 100)
+                    : completionPercentage;
 
-                setSummary({ completedLessons, totalLessons, completionPercentage });
+                setSummary({
+                    completedLessons,
+                    totalLessons,
+                    completionPercentage,
+                    watchedSeconds,
+                    totalWatchableSeconds,
+                    watchProgressPercentage,
+                });
 
                 setBarData(
                     (enrollments || []).map((entry, idx) => ({
@@ -52,9 +67,33 @@ export default function StudentProgressPage() {
                     }))
                 );
 
-                const lastSeven = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-                const base = Math.max(0, completionPercentage - 18);
-                setLineData(lastSeven.map((day, index) => ({ day, xp: Math.min(100, base + index * 3) })));
+                // Build real daily progression from completed lesson timestamps (last 7 days).
+                const completionEvents = valid
+                    .flatMap((item) => item?.lessons || [])
+                    .filter((lesson) => lesson?.isCompleted)
+                    .map((lesson) => {
+                        const completedAt = lesson?.progress?.completedAt || lesson?.progress?.lastWatchedAt;
+                        return completedAt ? new Date(completedAt) : null;
+                    })
+                    .filter((d): d is Date => Boolean(d));
+
+                const dailyCount = new Map<string, number>();
+                completionEvents.forEach((date) => {
+                    const key = date.toDateString();
+                    dailyCount.set(key, (dailyCount.get(key) || 0) + 1);
+                });
+
+                const days = Array.from({ length: 7 }).map((_, idx) => {
+                    const d = new Date();
+                    d.setDate(d.getDate() - (6 - idx));
+                    const key = d.toDateString();
+                    return {
+                        day: d.toLocaleDateString(undefined, { weekday: "short" }),
+                        xp: dailyCount.get(key) || 0,
+                    };
+                });
+
+                setLineData(days);
             } catch (err) {
                 if (!mounted) return;
                 setError(err instanceof Error ? err.message : "Failed to load progress");
@@ -85,14 +124,17 @@ export default function StudentProgressPage() {
 
             <div className="mb-6 dei-card p-5">
                 <div className="mb-2 flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Overall completion</p>
+                    <p className="text-sm text-muted-foreground">Overall watch progress</p>
                     <p className="text-sm font-semibold text-foreground">
-                        {summary.completedLessons} / {summary.totalLessons} lessons
+                        {summary.watchedSeconds}s / {summary.totalWatchableSeconds}s watched
                     </p>
                 </div>
                 <div className="h-2 rounded-full bg-muted">
-                    <div className="h-2 rounded-full bg-primary" style={{ width: `${summary.completionPercentage}%` }} />
+                    <div className="h-2 rounded-full bg-primary" style={{ width: `${summary.watchProgressPercentage}%` }} />
                 </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                    Lessons completed: {summary.completedLessons}/{summary.totalLessons} ({summary.completionPercentage}%)
+                </p>
             </div>
 
             {loading ? (

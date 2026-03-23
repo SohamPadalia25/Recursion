@@ -9,6 +9,7 @@
     "seed:demo-courses": "node src/utils/seedDemoCourses.js",
     "seed:platform": "node src/utils/seedPlatformData.js",
     "seed:certificate-workflow": "node src/utils/seedCertificateWorkflow.js",
+    "seed:learning-progress": "node src/utils/seedLearningProgressAndReviews.js",
     "hardhat:compile": "hardhat compile",
     "chain:local": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy-local.js --network localhost"

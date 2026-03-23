@@ -33,11 +33,28 @@ export type Enrollment = {
     enrolledAt?: string;
 };
 
+export type CourseReview = {
+    _id: string;
+    student?: {
+        _id?: string;
+        fullname?: string;
+        avatar?: string;
+    };
+    course?: string;
+    rating: number;
+    comment?: string;
+    createdAt?: string;
+    updatedAt?: string;
+};
+
 export type CourseProgress = {
     completionPercentage: number;
     isCompleted: boolean;
     completedLessons: number;
     totalLessons: number;
+    watchedSeconds?: number;
+    totalLessonDurationSeconds?: number;
+    watchProgressPercentage?: number;
     lessons: Array<{
         _id: string;
         title: string;
@@ -45,7 +62,25 @@ export type CourseProgress = {
         order?: number;
         module?: string;
         isCompleted: boolean;
+        progress?: {
+            _id?: string;
+            watchedDuration?: number;
+            completedAt?: string | null;
+            lastWatchedAt?: string;
+            isCompleted?: boolean;
+        } | null;
     }>;
+};
+
+export type LessonWatchUpdateResult = {
+    progress: {
+        _id: string;
+        watchedDuration: number;
+        isCompleted: boolean;
+        completedAt?: string | null;
+    };
+    requiredWatchSeconds: number;
+    completionThreshold: number;
 };
 
 export type AdminStats = {
@@ -105,6 +140,10 @@ export async function getMyLearning() {
     return apiRequest<Enrollment[]>("/api/v1/users/my-learning");
 }
 
+export async function getMyEnrollments() {
+    return apiRequest<Enrollment[]>('/api/v1/enrollments/my');
+}
+
 export async function checkEnrollmentStatus(courseId: string) {
     return apiRequest<{ isEnrolled: boolean; enrollment: Enrollment | null }>(`/api/v1/enrollments/status/${courseId}`);
 }
@@ -118,6 +157,13 @@ export async function enrollInCourse(courseId: string, studyGoal?: string, deadl
 
 export async function getCourseProgress(courseId: string) {
     return apiRequest<CourseProgress>(`/api/v1/progress/course/${courseId}`);
+}
+
+export async function updateLessonWatchTime(lessonId: string, courseId: string, watchedDuration: number) {
+    return apiRequest<LessonWatchUpdateResult>(`/api/v1/progress/lesson/${lessonId}/watch`, {
+        method: "PATCH",
+        body: { courseId, watchedDuration },
+    });
 }
 
 export async function getInstructorCourses() {
@@ -168,4 +214,24 @@ export async function getFlaggedChats() {
     return apiRequest<Array<{ _id: string; flagReason?: string; updatedAt?: string; student?: { fullname?: string; email?: string }; course?: { title?: string } }>>(
         "/api/v1/admin/ai/flagged-chats"
     );
+}
+
+export async function getCourseReviews(courseId: string, page = 1, limit = 10) {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    return apiRequest<{ reviews: CourseReview[]; total: number; breakdown: Array<{ _id: number; count: number }> }>(
+        `/api/v1/reviews/${courseId}?${query.toString()}`
+    );
+}
+
+export async function createCourseReview(courseId: string, rating: number, comment?: string) {
+    return apiRequest<CourseReview>(`/api/v1/reviews`, {
+        method: "POST",
+        body: { courseId, rating, comment },
+    });
+}
+
+export async function deleteCourseReview(courseId: string) {
+    return apiRequest(`/api/v1/reviews/${courseId}`, {
+        method: "DELETE",
+    });
 }
