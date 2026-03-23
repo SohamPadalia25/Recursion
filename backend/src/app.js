@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser"
+import graphRoutes from "./routes/graph.routes.js";
 
 const app=express();
 
@@ -20,5 +21,6 @@ app.use(cookieParser())
 //routes import 
 
 //routes declaration
+app.use("/api", graphRoutes)
 
 export default app;

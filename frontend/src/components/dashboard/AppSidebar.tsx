@@ -7,6 +7,7 @@ import {
   BarChart3,
   Calendar,
   MessageSquare,
+  Network,
   ChevronLeft,
   ChevronRight,
   Sparkles,
@@ -22,6 +23,7 @@ const navItems = [
   { icon: Calendar, label: "Lecture", to: "/student/lecture" },
   { icon: Trophy, label: "Certificates", to: "/student/certificates" },
   { icon: MessageSquare, label: "Practice", to: "/student/practice" },
+  { icon: Network, label: "Roadmap", to: "/student/roadmap" },
   { icon: Sparkles, label: "AI Tools", to: "/student/tools" },
 ];
 
@@ -63,10 +65,13 @@ export function AppSidebar() {
       <nav className="flex-1 py-4 px-2 space-y-1">
         {navItems.map((item) => {
           const isCourseDetail = location.pathname.startsWith("/student/course/");
+          const isRoadmapCourse = location.pathname.startsWith("/student/roadmap/course/");
           const isActive = item.to === "/student"
             ? location.pathname === "/student"
             : item.to === "/student/courses"
               ? location.pathname.startsWith(item.to) || isCourseDetail
+              : item.to === "/student/roadmap"
+                ? location.pathname.startsWith(item.to) || isRoadmapCourse
               : location.pathname.startsWith(item.to);
 
           return (
