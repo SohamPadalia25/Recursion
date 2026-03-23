@@ -13,6 +13,8 @@ import {
   reviewCard,
   createPlan,
   replanStudy,
+  getLessonTranscript,
+  analyzeNotes,
 } from "../controllers/ai.controller.js";
 
 const router = Router();
@@ -53,5 +55,13 @@ router.post("/flashcards/review", reviewCard);
 router.post("/study-plan/create", createPlan);
 // POST /api/v1/ai/study-plan/replan
 router.post("/study-plan/replan", replanStudy);
+
+// ── Transcript ────────────────────────────────
+// GET /api/v1/ai/transcript/:lessonId
+router.get("/transcript/:lessonId", getLessonTranscript);
+
+// ── Notes AI ─────────────────────────────────
+// POST /api/v1/ai/notes/analyze
+router.post("/notes/analyze", analyzeNotes);
 
 export default router;

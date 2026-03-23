@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "node:path";
+import { ApiError } from "./utils/ApiError.js";
 import graphRoutes from "./routes/graph.routes.js";
 import videoCallRoutes from "./routes/videoCall.routes.js";
 import notesRoutes from "./routes/notes.routes.js";
@@ -75,5 +76,17 @@ app.use("/api/v1/discussions", discussionRouter);
 app.use("/api/v1/reviews", reviewRouter);
 app.use("/api/v1/notifications", notificationRouter);
 app.use("/api/v1/admin", adminRouter);
+
+app.use((err, req, res, next) => {
+  const statusCode = err instanceof ApiError ? err.statusCode : 500;
+  const message = err?.message || "Internal server error";
+
+  return res.status(statusCode).json({
+    success: false,
+    statusCode,
+    message,
+    data: null,
+  });
+});
 
 export default app;
