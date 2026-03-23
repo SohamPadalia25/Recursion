@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Clock3, Flame, Info, MoreVertical, PlayCircle, Star } from "lucide-react";
+import { MoreVertical, PlayCircle, Star } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { AppFrame } from "@/components/platform/AppFrame";
 import { Button } from "@/components/ui/button";
-import { enrollInCourse, getMyLearning, getPublishedCourses, type Course, type Enrollment } from "@/lib/course-api";
+import { enrollInCourse, getMyEnrollments, getPublishedCourses, type Course, type Enrollment } from "@/lib/course-api";
 import { studentNav } from "../roleNav";
 
 const learningTabs = ["All courses", "My courses"];
@@ -26,7 +26,7 @@ export default function StudentCoursesPage() {
 
             try {
                 const [learning, published] = await Promise.all([
-                    getMyLearning(),
+                    getMyEnrollments(),
                     getPublishedCourses({ limit: 24 }),
                 ]);
 
@@ -58,7 +58,7 @@ export default function StudentCoursesPage() {
             return discoverCourses;
         }
 
-        if (tab === "My Lists") {
+        if (tab === "My courses") {
             return myLearning.map((entry) => entry.course).filter(Boolean);
         }
 
@@ -68,7 +68,7 @@ export default function StudentCoursesPage() {
     const handleEnroll = async (courseId: string) => {
         try {
             await enrollInCourse(courseId);
-            const learning = await getMyLearning();
+            const learning = await getMyEnrollments();
             setMyLearning(learning || []);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Enrollment failed");

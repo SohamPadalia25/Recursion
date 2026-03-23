@@ -70,6 +70,7 @@ export type CourseProgress = {
             completedAt?: string | null;
             lastWatchedAt?: string;
             isCompleted?: boolean;
+            attentionScore?: number | null;
         } | null;
     }>;
 };
@@ -83,6 +84,8 @@ export type LessonWatchUpdateResult = {
     };
     requiredWatchSeconds: number;
     completionThreshold: number;
+    serverCappedIncrement?: boolean;
+    effectiveLessonDurationSeconds?: number;
 };
 
 export type AdminStats = {
@@ -161,10 +164,22 @@ export async function getCourseProgress(courseId: string) {
     return apiRequest<CourseProgress>(`/api/v1/progress/course/${courseId}`);
 }
 
-export async function updateLessonWatchTime(lessonId: string, courseId: string, watchedDuration: number) {
+export async function updateLessonWatchTime(
+    lessonId: string,
+    courseId: string,
+    watchedDuration: number,
+    lessonDurationSeconds?: number,
+) {
     return apiRequest<LessonWatchUpdateResult>(`/api/v1/progress/lesson/${lessonId}/watch`, {
         method: "PATCH",
-        body: { courseId, watchedDuration },
+        body: { courseId, watchedDuration, lessonDurationSeconds },
+    });
+}
+
+export async function saveLessonAttentionScore(lessonId: string, courseId: string, attentionScore: number) {
+    return apiRequest(`/api/v1/progress/lesson/${lessonId}/attention`, {
+        method: "PATCH",
+        body: { courseId, attentionScore },
     });
 }
 
