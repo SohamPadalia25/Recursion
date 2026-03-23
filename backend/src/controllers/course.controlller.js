@@ -11,6 +11,7 @@ import { uploadOnCloudinary } from '../utils/cloudinary.js';
 // POST /api/v1/courses
 const createCourse = asyncHandler(async (req, res) => {
     const { title, description, category, price, level, language, tags } = req.body;
+    const modulesInput = req.body?.modules;
 
     if (!title || !description || !category) {
         throw new ApiError(400, "Title, description and category are required");
@@ -23,6 +24,28 @@ const createCourse = asyncHandler(async (req, res) => {
         thumbnailUrl = uploaded.url;
     }
 
+    const parsedTags = Array.isArray(tags)
+        ? tags
+        : typeof tags === "string"
+            ? tags.split(",").map((t) => t.trim()).filter(Boolean)
+            : [];
+
+    const parseModules = (rawModules) => {
+        if (!rawModules) return [];
+        if (Array.isArray(rawModules)) return rawModules;
+        if (typeof rawModules === "string") {
+            try {
+                const parsed = JSON.parse(rawModules);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch {
+                throw new ApiError(400, "Invalid modules payload");
+            }
+        }
+        return [];
+    };
+
+    const modules = parseModules(modulesInput);
+
     const course = await Course.create({
         title,
         description,
@@ -32,10 +55,56 @@ const createCourse = asyncHandler(async (req, res) => {
         price: price || 0,
         level: level || "beginner",
         language: language || "English",
-        tags: tags ? tags.split(",").map(t => t.trim()) : [],
+        tags: parsedTags,
         status: "draft",
         isApproved: false,
     });
+
+    if (modules.length > 0) {
+        for (let moduleIndex = 0; moduleIndex < modules.length; moduleIndex += 1) {
+            const moduleData = modules[moduleIndex] || {};
+            const moduleTitle = (moduleData.title || "").trim();
+
+            if (!moduleTitle) {
+                throw new ApiError(400, `Module title is required at position ${moduleIndex + 1}`);
+            }
+
+            const createdModule = await Module.create({
+                title: moduleTitle,
+                description: moduleData.description || "",
+                course: course._id,
+                order: moduleIndex + 1,
+                prerequisiteModule: moduleData.prerequisiteModule || null,
+                isLocked: Boolean(moduleData.prerequisiteModule),
+            });
+
+            const lessons = Array.isArray(moduleData.lessons) ? moduleData.lessons : [];
+            for (let lessonIndex = 0; lessonIndex < lessons.length; lessonIndex += 1) {
+                const lessonData = lessons[lessonIndex] || {};
+                const lessonTitle = (lessonData.title || "").trim();
+                const lessonVideoUrl = (lessonData.videoUrl || "").trim();
+
+                if (!lessonTitle) {
+                    throw new ApiError(400, `Lesson title is required at module ${moduleIndex + 1}, lesson ${lessonIndex + 1}`);
+                }
+
+                if (!lessonVideoUrl) {
+                    throw new ApiError(400, `Lesson videoUrl is required at module ${moduleIndex + 1}, lesson ${lessonIndex + 1}`);
+                }
+
+                await Lesson.create({
+                    title: lessonTitle,
+                    description: lessonData.description || "",
+                    module: createdModule._id,
+                    course: course._id,
+                    videoUrl: lessonVideoUrl,
+                    duration: Number(lessonData.duration || 0),
+                    order: lessonIndex + 1,
+                    isFree: lessonData.isFree === true || lessonData.isFree === "true",
+                });
+            }
+        }
+    }
 
     return res.status(201).json(
         new ApiResponse(201, course, "Course created successfully")
