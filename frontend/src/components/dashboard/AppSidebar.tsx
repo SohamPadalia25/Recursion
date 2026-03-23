@@ -75,8 +75,8 @@ export function AppSidebar() {
               onClick={() => navigate(item.to)}
               whileTap={{ scale: 0.96 }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200 group relative ${isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                 }`}
             >
               {isActive && (

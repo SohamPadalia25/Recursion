@@ -18,6 +18,7 @@ import StudentToolsPage from "./pages/student/Tools";
 import StudentCertificatesPage from "./pages/student/Certificates";
 import StudentOnboardingPage from "./pages/student/Onboarding";
 import StudentCourseDetailPage from "./pages/student/CourseDetail";
+import StudentCoursePlayerPage from "./pages/student/CoursePlayer";
 import InstructorDashboardPage from "./pages/instructor/Dashboard";
 import InstructorCourseBuilderPage from "./pages/instructor/CourseBuilder";
 import InstructorTeachingToolsPage from "./pages/instructor/TeachingTools";
@@ -112,6 +113,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={["student"]}>
                   <StudentCourseDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/student/course/:courseId/learn/:weekIdx/:lectureIdx"
+              element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentCoursePlayerPage />
                 </ProtectedRoute>
               }
             />
