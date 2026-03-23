@@ -1,5 +1,34 @@
 import { API_BASE_URL } from "@/lib/api-client";
 
+export type GraphNode = {
+  id: string;
+  label: string;
+  type: "course" | "module" | "lesson";
+  color: string;
+  completionStatus: "completed" | "in-progress" | "not-started";
+  completionPercentage: number;
+  category?: string;
+  courseId?: string;
+  moduleId?: string;
+};
+
+export type GraphLink = {
+  source: string;
+  target: string;
+  type: string;
+};
+
+export type StudentProgressGraph = {
+  nodes: GraphNode[];
+  links: GraphLink[];
+  stats: {
+    totalCourses: number;
+    completedCourses: number;
+    inProgressCourses: number;
+    totalNodes: number;
+  };
+};
+
 export type Neo4jInsights = {
   context: {
     studentId: string;
@@ -94,4 +123,17 @@ export async function getNeo4jInsights(params?: {
   }
 
   return (await response.json()) as Neo4jInsights;
+}
+
+export async function getStudentProgressGraph() {
+  const response = await fetch(`${API_BASE_URL}/api/student-progress`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const txt = await response.text();
+    throw new Error(`Failed to load student progress graph (${response.status}): ${txt.slice(0, 160)}`);
+  }
+
+  return (await response.json()) as StudentProgressGraph;
 }

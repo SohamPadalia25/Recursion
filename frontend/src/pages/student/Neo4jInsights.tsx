@@ -2,9 +2,11 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AppFrame } from "@/components/platform/AppFrame";
 import { studentNav } from "@/pages/roleNav";
-import { getNeo4jInsights } from "@/lib/neo4j-api";
+import { getNeo4jInsights, getStudentProgressGraph } from "@/lib/neo4j-api";
+import { ProgressGraphViz } from "@/components/ProgressGraphViz";
 
 const tabs = [
+  { key: "progress", label: "Progress Graph" },
   { key: "structure", label: "Course Structure" },
   { key: "knowledge", label: "Knowledge Graph" },
   { key: "roadmap", label: "Roadmaps" },
@@ -20,7 +22,7 @@ function ScoreBadge({ value }: { value: number }) {
 }
 
 export default function StudentNeo4jInsightsPage() {
-  const [activeTab, setActiveTab] = useState<TabKey>("structure");
+  const [activeTab, setActiveTab] = useState<TabKey>("progress");
   const [filters, setFilters] = useState({
     studentId: "stu-001",
     courseId: "course-001",
@@ -32,6 +34,11 @@ export default function StudentNeo4jInsightsPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["neo4j-insights", appliedFilters],
     queryFn: () => getNeo4jInsights(appliedFilters),
+  });
+
+  const { data: progressGraphData, isLoading: progressLoading, error: progressError } = useQuery({
+    queryKey: ["student-progress-graph"],
+    queryFn: () => getStudentProgressGraph(),
   });
 
   const groupedStructure = useMemo(() => {
@@ -121,11 +128,10 @@ export default function StudentNeo4jInsightsPage() {
             key={tab.key}
             type="button"
             onClick={() => setActiveTab(tab.key)}
-            className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === tab.key
+            className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.key
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
+              }`}
           >
             {tab.label}
           </button>
@@ -134,6 +140,43 @@ export default function StudentNeo4jInsightsPage() {
 
       {isLoading ? <div className="dei-card p-5 text-sm text-muted-foreground">Loading Neo4j insights...</div> : null}
       {error ? <div className="dei-card p-5 text-sm text-destructive">{(error as Error).message}</div> : null}
+
+      {!progressLoading && !progressError && progressGraphData && activeTab === "progress" ? (
+        <section className="grid gap-4">
+          <article className="dei-card p-4">
+            <h3 className="mb-2 text-base font-semibold text-foreground">Course Progress Graph</h3>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Visual representation of your learning journey. Green nodes indicate completed items, yellow for in-progress, and gray for not started.
+            </p>
+          </article>
+
+          <article className="dei-card overflow-hidden p-0">
+            <ProgressGraphViz data={progressGraphData} height={600} />
+          </article>
+
+          <article className="dei-card grid gap-3 sm:grid-cols-3 p-4">
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">Total Courses</p>
+              <p className="mt-1 text-2xl font-bold text-foreground">{progressGraphData.stats.totalCourses}</p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">Completed</p>
+              <p className="mt-1 text-2xl font-bold text-green-600">{progressGraphData.stats.completedCourses}</p>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground">In Progress</p>
+              <p className="mt-1 text-2xl font-bold text-yellow-600">{progressGraphData.stats.inProgressCourses}</p>
+            </div>
+          </article>
+        </section>
+      ) : null}
+
+      {progressLoading && activeTab === "progress" ? (
+        <div className="dei-card p-5 text-sm text-muted-foreground">Loading progress graph...</div>
+      ) : null}
+      {progressError && activeTab === "progress" ? (
+        <div className="dei-card p-5 text-sm text-destructive">{(progressError as Error).message}</div>
+      ) : null}
 
       {!isLoading && !error && data && activeTab === "structure" ? (
         <section className="grid gap-4">

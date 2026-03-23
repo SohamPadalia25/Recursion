@@ -379,6 +379,8 @@ export {
   reviewCard,
   createPlan,
   replanStudy,
+  getTrendingJobs,
+  findJobs,
   getLessonTranscript,
   analyzeNotes,
 };
