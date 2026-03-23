@@ -1,16 +1,11 @@
 import { Clock3, Flame, Info, MoreVertical, PlayCircle, Star } from "lucide-react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import { AppFrame } from "@/components/platform/AppFrame";
-import { Button } from "@/components/ui/button";
-import { demoCourses } from "@/data/udemyDemoCourses";
 import { studentNav } from "../roleNav";
 
 const learningTabs = ["All courses", "My Lists", "Wishlist", "Archived", "Learning tools"];
 
 export default function StudentCoursesPage() {
-    const navigate = useNavigate();
-
     return (
         <AppFrame
             roleLabel="Student"

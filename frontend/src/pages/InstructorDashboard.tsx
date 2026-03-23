@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/auth/AuthContext";
+import { InstructorLiveSessionButton } from "@/components/dashboard/InstructorLiveSessionButton";
 import {
   AreaChart,
   Area,
@@ -250,6 +251,16 @@ export default function InstructorDashboard() {
         </motion.header>
 
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          {/* Live Session Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-6 max-w-md"
+          >
+            <InstructorLiveSessionButton />
+          </motion.div>
+
           {/* Stats */}
           <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {[
