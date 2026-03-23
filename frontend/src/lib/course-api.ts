@@ -75,6 +75,42 @@ export type CourseProgress = {
     }>;
 };
 
+export type LessonTranscript = {
+    lessonId: string;
+    text: string;
+    language?: string;
+    duration?: number;
+    provider?: string;
+    model?: string;
+    segments: Array<{
+        id: string;
+        start: number;
+        end: number;
+        text: string;
+    }>;
+};
+
+export type TimestampNoteInput = {
+    id: string;
+    timestamp: string;
+    text: string;
+    tags: string[];
+};
+
+export type NotesAnalysis = {
+    summary: string[];
+    flashcards: Array<{
+        question: string;
+        answer: string;
+        timestamp?: string;
+    }>;
+    concepts: Array<{
+        concept: string;
+        reason?: string;
+        timestamp?: string;
+    }>;
+};
+
 export type LessonWatchUpdateResult = {
     progress: {
         _id: string;
@@ -139,6 +175,21 @@ export async function getLessonDetail(lessonId: string) {
         resources?: Array<{ title: string; url: string; type?: string }>;
         isFree?: boolean;
     }>(`/api/v1/lessons/${lessonId}`);
+}
+
+export async function getLessonTranscript(lessonId: string) {
+    return apiRequest<LessonTranscript>(`/api/v1/ai/transcript/${lessonId}`);
+}
+
+export async function analyzeLessonNotes(payload: {
+    lessonTitle?: string;
+    courseTitle?: string;
+    notes: TimestampNoteInput[];
+}) {
+    return apiRequest<NotesAnalysis>("/api/v1/ai/notes/analyze", {
+        method: "POST",
+        body: payload,
+    });
 }
 
 export async function getMyLearning() {

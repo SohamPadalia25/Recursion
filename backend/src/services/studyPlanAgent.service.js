@@ -71,7 +71,7 @@ Return ONLY valid JSON:
 
   const raw = await chatWithGroq(
     [{ role: "user", content: prompt }],
-    "llama3-8b-8192",
+    process.env.GROQ_STUDYPLAN_MODEL,
     true
   );
 
