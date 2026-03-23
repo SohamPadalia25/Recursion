@@ -273,11 +273,10 @@ export function CodeEditor({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={copyCode}
-            className={`p-2 rounded-lg transition-colors ${
-              copied
+            className={`p-2 rounded-lg transition-colors ${copied
                 ? "bg-green-500/20 text-green-600"
                 : "bg-muted hover:bg-accent text-muted-foreground"
-            }`}
+              }`}
             title="Copy to clipboard"
           >
             <Copy className="w-4 h-4" />
@@ -348,45 +347,44 @@ export function CodeEditor({
           className="flex-1 overflow-y-auto bg-background transition-opacity"
           style={{ display: isConsoleOpen ? "block" : "none" }}
         >
-              {consoleLogs.length === 0 ? (
-                <div className="p-4 text-xs text-muted-foreground text-center py-8">
-                  Console output will appear here...
-                </div>
-              ) : (
-                <div className="font-mono text-xs">
-                  {consoleLogs.map((log) => (
-                    <motion.div
-                      key={log.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      className={`px-4 py-1 border-l-2 ${
-                        log.type === "error"
-                          ? "bg-red-500/5 text-red-600 border-red-500"
-                          : log.type === "warn"
-                            ? "bg-yellow-500/5 text-yellow-600 border-yellow-500"
-                            : log.type === "info"
-                              ? "bg-blue-500/5 text-blue-600 border-blue-500"
-                              : "bg-green-500/5 text-green-600 border-green-500"
-                      }`}
-                    >
-                      <span className="text-muted-foreground mr-2">
-                        [{log.timestamp.toLocaleTimeString()}]
-                      </span>
-                      <span className="font-semibold mr-2">
-                        {log.type === "error"
-                          ? "❌"
-                          : log.type === "warn"
-                            ? "⚠️"
-                            : log.type === "info"
-                              ? "ℹ️"
-                              : "✓"}
-                      </span>
-                      <span className="break-all">{log.message}</span>
-                    </motion.div>
-                  ))}
-                  <div ref={consoleEndRef} />
-                </div>
-              )}
+          {consoleLogs.length === 0 ? (
+            <div className="p-4 text-xs text-muted-foreground text-center py-8">
+              Console output will appear here...
+            </div>
+          ) : (
+            <div className="font-mono text-xs">
+              {consoleLogs.map((log) => (
+                <motion.div
+                  key={log.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className={`px-4 py-1 border-l-2 ${log.type === "error"
+                      ? "bg-red-500/5 text-red-600 border-red-500"
+                      : log.type === "warn"
+                        ? "bg-yellow-500/5 text-yellow-600 border-yellow-500"
+                        : log.type === "info"
+                          ? "bg-blue-500/5 text-blue-600 border-blue-500"
+                          : "bg-green-500/5 text-green-600 border-green-500"
+                    }`}
+                >
+                  <span className="text-muted-foreground mr-2">
+                    [{log.timestamp.toLocaleTimeString()}]
+                  </span>
+                  <span className="font-semibold mr-2">
+                    {log.type === "error"
+                      ? "❌"
+                      : log.type === "warn"
+                        ? "⚠️"
+                        : log.type === "info"
+                          ? "ℹ️"
+                          : "✓"}
+                  </span>
+                  <span className="break-all">{log.message}</span>
+                </motion.div>
+              ))}
+              <div ref={consoleEndRef} />
+            </div>
+          )}
         </div>
       </div>
 

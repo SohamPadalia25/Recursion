@@ -23,11 +23,10 @@ export default function StudentCoursesPage() {
                     {learningTabs.map((tab, i) => (
                         <button
                             key={tab}
-                            className={`whitespace-nowrap pb-2 text-sm transition-colors ${
-                                i === 0
+                            className={`whitespace-nowrap pb-2 text-sm transition-colors ${i === 0
                                     ? "border-b-2 border-foreground font-semibold text-foreground"
                                     : "text-muted-foreground hover:text-foreground"
-                            }`}
+                                }`}
                             type="button"
                         >
                             {tab}
