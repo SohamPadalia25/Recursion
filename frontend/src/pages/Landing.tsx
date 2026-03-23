@@ -6,18 +6,11 @@ import {
   Brain,
   Zap,
   Users,
-  BookOpen,
-  BarChart3,
-  Play,
-  ArrowRight,
-  Star,
-  ChevronRight,
-  Globe,
   Target,
   Rocket,
-  GraduationCap,
-  Award,
-  TrendingUp,
+  Star,
+  ArrowRight,
+  Play,
   CheckCircle2,
   MousePointerClick,
 } from "lucide-react";
@@ -30,9 +23,9 @@ function AnimatedSection({ children, className = "", delay = 0 }: { children: Re
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+      initial={{ opacity: 0, y: 30, filter: "blur(8px)" }}
       animate={isInView ? { opacity: 1, y: 0, filter: "blur(0px)" } : {}}
-      transition={{ duration: 0.6, delay, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
       className={className}
     >
       {children}
@@ -55,58 +48,16 @@ function FloatingOrb({ className, delay = 0 }: { className: string; delay?: numb
 }
 
 const testimonials = [
-  {
-    name: "Priya Sharma",
-    role: "Data Science Student",
-    text: "Dei adapted to my learning speed. I finished my ML course 40% faster than expected.",
-    initials: "PS",
-    gradient: "from-dei-peach to-dei-rose",
-  },
-  {
-    name: "Marcus Chen",
-    role: "Full-Stack Developer",
-    text: "The AI buddy is like having a personal tutor available 24/7. Game changer.",
-    initials: "MC",
-    gradient: "from-dei-sky to-dei-lavender",
-  },
-  {
-    name: "Fatima Al-Rashid",
-    role: "UX Design Instructor",
-    text: "My students' completion rates jumped from 34% to 89% after switching to Dei.",
-    initials: "FA",
-    gradient: "from-dei-sage to-dei-sky",
-  },
+  { name: "Priya Sharma", role: "Data Science Student", text: "Dei adapted to my learning speed. I finished my ML course 40% faster than expected.", initials: "PS", gradient: "from-dei-peach to-dei-rose" },
+  { name: "Marcus Chen", role: "Full-Stack Developer", text: "The AI buddy is like having a personal tutor available 24/7. Game changer.", initials: "MC", gradient: "from-dei-sky to-dei-lavender" },
+  { name: "Fatima Al-Rashid", role: "UX Design Instructor", text: "My students' completion rates jumped from 34% to 89% after switching to Dei.", initials: "FA", gradient: "from-dei-sage to-dei-sky" },
 ];
 
 const features = [
-  {
-    icon: Brain,
-    title: "Adaptive Intelligence",
-    desc: "AI analyzes your learning patterns and adjusts difficulty, pacing, and content in real-time.",
-    color: "text-dei-lavender",
-    bg: "dei-gradient-lavender",
-  },
-  {
-    icon: Target,
-    title: "Precision Roadmaps",
-    desc: "Auto-generated learning paths that evolve based on your progress and career goals.",
-    color: "text-dei-peach",
-    bg: "dei-gradient-peach",
-  },
-  {
-    icon: Zap,
-    title: "Instant Feedback",
-    desc: "Smart quizzes with real-time analysis. Know exactly where you stand, always.",
-    color: "text-dei-amber",
-    bg: "dei-gradient-amber",
-  },
-  {
-    icon: Users,
-    title: "Collaborative Cohorts",
-    desc: "Learn alongside peers matched by skill level, timezone, and learning style.",
-    color: "text-dei-sky",
-    bg: "dei-gradient-sky",
-  },
+  { icon: Brain, title: "Adaptive Intelligence", desc: "AI analyzes your learning patterns and adjusts difficulty, pacing, and content in real-time.", color: "text-dei-lavender", bg: "dei-gradient-lavender" },
+  { icon: Target, title: "Precision Roadmaps", desc: "Auto-generated learning paths that evolve based on your progress and career goals.", color: "text-dei-peach", bg: "dei-gradient-peach" },
+  { icon: Zap, title: "Instant Feedback", desc: "Smart quizzes with real-time analysis. Know exactly where you stand, always.", color: "text-dei-amber", bg: "dei-gradient-amber" },
+  { icon: Users, title: "Collaborative Cohorts", desc: "Learn alongside peers matched by skill level, timezone, and learning style.", color: "text-dei-sky", bg: "dei-gradient-sky" },
 ];
 
 const stats = [
@@ -118,7 +69,25 @@ const stats = [
 
 export default function Landing() {
   const { scrollYProgress } = useScroll();
-  const heroY = useTransform(scrollYProgress, [0, 0.3], [0, -80]);
+  
+  // Hero Parallax
+  const heroTextY = useTransform(scrollYProgress, [0, 0.3], [0, -100]);
+  const mascotY = useTransform(scrollYProgress, [0, 0.3], [0, -40]);
+  const featuresBgY = useTransform(scrollYProgress, [0.1, 0.5], [100, -100]);
+
+  // Features Section Staggered Card Parallax
+  const featuresRef = useRef(null);
+  const { scrollYProgress: featuresScroll } = useScroll({ target: featuresRef, offset: ["start end", "end start"] });
+  const fCol1Y = useTransform(featuresScroll, [0, 1], [60, -60]);
+  const fCol2Y = useTransform(featuresScroll, [0, 1], [120, -120]);
+
+  // Testimonials Section Staggered Card Parallax
+  const testimonialsRef = useRef(null);
+  const { scrollYProgress: testScroll } = useScroll({ target: testimonialsRef, offset: ["start end", "end start"] });
+  const tCol1Y = useTransform(testScroll, [0, 1], [50, -50]);
+  const tCol2Y = useTransform(testScroll, [0, 1], [100, -100]);
+  const tCol3Y = useTransform(testScroll, [0, 1], [150, -150]);
+
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -163,114 +132,102 @@ export default function Landing() {
       </motion.nav>
 
       {/* Hero */}
-      <section className="relative min-h-[100vh] flex items-center justify-center pt-16 overflow-hidden">
+      <section className="relative min-h-[100vh] flex items-center pt-24 pb-16 overflow-hidden">
         <FloatingOrb className="w-96 h-96 bg-dei-peach -top-20 -right-20" delay={0} />
         <FloatingOrb className="w-72 h-72 bg-dei-sky -bottom-10 -left-10" delay={2} />
         <FloatingOrb className="w-64 h-64 bg-dei-lavender top-1/3 left-1/4" delay={4} />
 
-        <motion.div style={{ y: heroY }} className="relative z-10 text-center max-w-4xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-8">
-              <Sparkles className="w-3.5 h-3.5" />
-              AI-powered learning, reimagined
-            </div>
-          </motion.div>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 30, filter: "blur(8px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[0.9] text-balance mb-6"
-          >
-            Learn at the
-            <br />
-            speed of{" "}
-            <span className="relative inline-block">
-              <span className="relative z-10">you</span>
-              <motion.span
-                className="absolute bottom-1 left-0 right-0 h-3 bg-primary/25 rounded-full -z-0"
-                initial={{ scaleX: 0 }}
-                animate={{ scaleX: 1 }}
-                transition={{ duration: 0.6, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                style={{ originX: 0 }}
-              />
-            </span>
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 text-pretty"
-          >
-            Dei uses artificial intelligence to build personalized learning paths,
-            adapt to your pace, and keep you engaged — so you actually finish what you start.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
-            <Link to="/student">
-              <Button size="lg" className="rounded-2xl px-8 h-13 text-base shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow">
-                Start learning free
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-            <Button variant="outline" size="lg" className="rounded-2xl px-8 h-13 text-base group">
-              <Play className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
-              Watch demo
-            </Button>
-          </motion.div>
-
-          {/* Floating dashboard preview */}
-          <motion.div
-            initial={{ opacity: 0, y: 60, rotateX: 15 }}
-            animate={{ opacity: 1, y: 0, rotateX: 0 }}
-            transition={{ duration: 1, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-16 relative"
-            style={{
-              transform: `perspective(1200px) rotateY(${(mousePos.x - 0.5) * 4}deg) rotateX(${(mousePos.y - 0.5) * -4}deg)`,
-              transition: "transform 0.3s ease-out",
-            }}
-          >
-            <div className="dei-card p-1 shadow-2xl shadow-primary/10">
-              <div className="bg-muted/30 rounded-xl p-4 md:p-6">
-                <div className="flex gap-4 mb-4">
-                  <div className="w-3 h-3 rounded-full bg-dei-rose/60" />
-                  <div className="w-3 h-3 rounded-full bg-dei-amber/60" />
-                  <div className="w-3 h-3 rounded-full bg-dei-sage/60" />
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="col-span-1 space-y-3">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className={`h-8 rounded-lg ${i === 1 ? "bg-primary/15" : "bg-muted/60"}`} />
-                    ))}
-                  </div>
-                  <div className="col-span-2 space-y-3">
-                    <div className="h-24 rounded-xl bg-primary/10" />
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="h-16 rounded-lg dei-gradient-sky" />
-                      <div className="h-16 rounded-lg dei-gradient-sage" />
-                      <div className="h-16 rounded-lg dei-gradient-amber" />
-                    </div>
-                    <div className="h-32 rounded-xl bg-muted/60" />
-                  </div>
-                </div>
+        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center relative z-10">
+          
+          {/* Left: Text Content */}
+          <motion.div style={{ y: heroTextY }} className="text-left">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-8">
+                <Sparkles className="w-3.5 h-3.5" />
+                AI-powered learning, reimagined
               </div>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 30, filter: "blur(8px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.8, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+              className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.05] text-balance mb-6"
+            >
+              Learn at the<br />speed of{" "}
+              <span className="relative inline-block text-primary">
+                <span className="relative z-10">you</span>
+                <motion.span
+                  className="absolute bottom-2 left-0 right-0 h-4 bg-primary/20 rounded-full -z-0"
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.6, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                  style={{ originX: 0 }}
+                />
+              </span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="text-lg md:text-xl text-muted-foreground mb-10 text-pretty max-w-lg"
+            >
+              Dei uses artificial intelligence to build personalized learning paths,
+              adapt to your pace, and keep you engaged — so you actually finish what you start.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
+              className="flex flex-col sm:flex-row items-center gap-4"
+            >
+              <Link to="/student" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto rounded-2xl px-8 h-13 text-base shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-shadow">
+                  Start learning free
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </Link>
+              <Button variant="outline" size="lg" className="w-full sm:w-auto rounded-2xl px-8 h-13 text-base group">
+                <Play className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
+                Watch demo
+              </Button>
+            </motion.div>
+          </motion.div>
+
+          {/* Right: Mascot Video */}
+          <motion.div
+            style={{ 
+              y: mascotY,
+              transform: `perspective(1000px) rotateY(${(mousePos.x - 0.5) * 10}deg) rotateX(${(mousePos.y - 0.5) * -10}deg)`,
+            }}
+            initial={{ opacity: 0, scale: 0.8, x: 50 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            transition={{ duration: 1, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="relative hidden lg:block"
+          >
+            <div className="absolute -inset-4 bg-gradient-to-tr from-primary/30 to-dei-sky/30 blur-3xl rounded-full opacity-60" />
+            <div className="relative rounded-[2.5rem] overflow-hidden border border-border/50 shadow-2xl shadow-primary/20 bg-muted/30 p-2">
+              <video 
+                src="/mascot.mp4" 
+                autoPlay 
+                loop 
+                muted 
+                playsInline 
+                className="w-full h-auto rounded-[2rem] object-cover"
+              />
             </div>
           </motion.div>
-        </motion.div>
+        </div>
       </section>
 
       {/* Stats Bar */}
-      <section className="py-16 border-y border-border/30">
+      <section className="py-16 bg-background relative z-20 border-y border-border/30 shadow-[0_0_50px_rgba(0,0,0,0.02)]">
         <div className="max-w-5xl mx-auto px-6">
           <AnimatedSection>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
@@ -295,10 +252,12 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-24 md:py-32 px-6">
-        <div className="max-w-6xl mx-auto">
-          <AnimatedSection className="text-center mb-16">
+      {/* Features with Staggered Parallax Cards */}
+      <section id="features" ref={featuresRef} className="py-24 md:py-32 px-6 relative overflow-hidden">
+        <motion.div style={{ y: featuresBgY }} className="absolute -right-40 top-40 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] -z-10" />
+        
+        <div className="max-w-6xl mx-auto relative z-10">
+          <AnimatedSection className="text-center mb-20">
             <p className="text-sm font-medium text-primary mb-3">Capabilities</p>
             <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-balance mb-4">
               Intelligence baked into every lesson
@@ -308,20 +267,27 @@ export default function Landing() {
             </p>
           </AnimatedSection>
 
-          <div className="grid md:grid-cols-2 gap-5">
+          <div className="grid md:grid-cols-2 gap-6 md:gap-8">
             {features.map((f, i) => (
-              <AnimatedSection key={f.title} delay={i * 0.08}>
-                <motion.div
-                  whileHover={{ y: -3, transition: { duration: 0.25 } }}
-                  className="dei-card p-6 md:p-8 group cursor-default h-full"
-                >
-                  <div className={`w-12 h-12 rounded-2xl ${f.bg} flex items-center justify-center mb-5`}>
-                    <f.icon className={`w-5 h-5 ${f.color}`} />
-                  </div>
-                  <h3 className="text-xl font-bold mb-2">{f.title}</h3>
-                  <p className="text-muted-foreground text-pretty leading-relaxed">{f.desc}</p>
-                </motion.div>
-              </AnimatedSection>
+              <motion.div 
+                key={f.title}
+                style={{ y: i % 2 === 0 ? fCol1Y : fCol2Y }} // Alternate column scrolling speeds
+                className="h-full"
+              >
+                <AnimatedSection delay={i * 0.1}>
+                  <motion.div
+                    whileHover={{ scale: 1.02, y: -8 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    className="dei-card p-8 md:p-10 group h-full bg-background/60 backdrop-blur-xl border border-border/50 shadow-lg hover:shadow-2xl hover:shadow-primary/10 transition-shadow duration-300 rounded-[2rem]"
+                  >
+                    <div className={`w-14 h-14 rounded-2xl ${f.bg} flex items-center justify-center mb-6 shadow-inner`}>
+                      <f.icon className={`w-6 h-6 ${f.color}`} />
+                    </div>
+                    <h3 className="text-2xl font-bold mb-3">{f.title}</h3>
+                    <p className="text-muted-foreground text-pretty leading-relaxed text-lg">{f.desc}</p>
+                  </motion.div>
+                </AnimatedSection>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -330,28 +296,35 @@ export default function Landing() {
       {/* How it works */}
       <section id="how-it-works" className="py-24 md:py-32 px-6 bg-muted/30">
         <div className="max-w-5xl mx-auto">
-          <AnimatedSection className="text-center mb-16">
+          <AnimatedSection className="text-center mb-20">
             <p className="text-sm font-medium text-primary mb-3">How it works</p>
             <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-balance">
               Three minutes to your first lesson
             </h2>
           </AnimatedSection>
 
-          <div className="space-y-12 md:space-y-0 md:grid md:grid-cols-3 md:gap-8">
+          <div className="space-y-12 md:space-y-0 md:grid md:grid-cols-3 md:gap-8 relative">
+            {/* Connecting Line background for desktop */}
+            <div className="hidden md:block absolute top-12 left-[15%] right-[15%] h-[2px] bg-gradient-to-r from-transparent via-primary/20 to-transparent -z-10" />
+            
             {[
               { step: "01", icon: MousePointerClick, title: "Tell us your goals", desc: "Pick your subject, skill level, and how much time you have. That's it." },
               { step: "02", icon: Brain, title: "AI builds your path", desc: "Our engine crafts a personalized curriculum with adaptive difficulty and pacing." },
               { step: "03", icon: Rocket, title: "Learn & evolve", desc: "As you progress, Dei reshapes your path. Struggling? It slows down. Flying? It challenges you." },
             ].map((s, i) => (
-              <AnimatedSection key={s.step} delay={i * 0.12}>
-                <div className="text-center md:text-left">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary/10 mb-5">
-                    <s.icon className="w-6 h-6 text-primary" />
+              <AnimatedSection key={s.step} delay={i * 0.2}>
+                <motion.div 
+                  whileHover={{ y: -8 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  className="text-center md:text-left bg-background p-8 rounded-[2rem] border border-border/40 shadow-sm hover:shadow-xl transition-shadow"
+                >
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-6 shadow-inner">
+                    <s.icon className="w-7 h-7 text-primary" />
                   </div>
-                  <p className="text-xs font-bold text-primary/60 tracking-widest uppercase mb-2">Step {s.step}</p>
-                  <h3 className="text-xl font-bold mb-2">{s.title}</h3>
-                  <p className="text-muted-foreground text-pretty">{s.desc}</p>
-                </div>
+                  <p className="text-xs font-bold text-primary/60 tracking-widest uppercase mb-3">Step {s.step}</p>
+                  <h3 className="text-xl font-bold mb-3">{s.title}</h3>
+                  <p className="text-muted-foreground text-pretty leading-relaxed">{s.desc}</p>
+                </motion.div>
               </AnimatedSection>
             ))}
           </div>
@@ -361,175 +334,122 @@ export default function Landing() {
       {/* Interactive feature showcase */}
       <section className="py-24 md:py-32 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
             <AnimatedSection>
               <p className="text-sm font-medium text-primary mb-3">AI Study Buddy</p>
-              <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-balance mb-5">
+              <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-balance mb-6">
                 Your always-on learning companion
               </h2>
-              <p className="text-muted-foreground text-pretty mb-8 leading-relaxed">
+              <p className="text-muted-foreground text-pretty mb-8 leading-relaxed text-lg">
                 Ask questions mid-lesson, get explanations in your language, or have it quiz you before an exam.
                 The AI buddy understands context and remembers your weak spots.
               </p>
-              <ul className="space-y-4">
+              <ul className="space-y-5">
                 {[
                   "Voice & text conversation",
                   "Context-aware doubt resolution",
                   "Personalized revision schedules",
                   "Explains concepts at your level",
                 ].map((item) => (
-                  <li key={item} className="flex items-center gap-3 text-sm">
-                    <CheckCircle2 className="w-4.5 h-4.5 text-dei-sage flex-shrink-0" />
+                  <li key={item} className="flex items-center gap-4 text-base font-medium">
+                    <CheckCircle2 className="w-6 h-6 text-dei-sage flex-shrink-0" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
             </AnimatedSection>
-            <AnimatedSection delay={0.15}>
-              <div className="dei-card p-5 space-y-3">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-primary" />
+            
+            <AnimatedSection delay={0.2}>
+              <motion.div 
+                whileHover={{ scale: 1.02 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                className="dei-card p-6 space-y-4 bg-background/80 backdrop-blur-xl shadow-2xl border border-border/50 rounded-[2rem]"
+              >
+                <div className="flex items-center gap-3 mb-6 border-b border-border/40 pb-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-primary" />
                   </div>
-                  <span className="text-sm font-semibold">Dei AI Buddy</span>
-                  <span className="ml-auto text-xs text-dei-sage font-medium px-2 py-0.5 rounded-full bg-dei-sage/10">Online</span>
+                  <span className="text-base font-semibold">Dei AI Buddy</span>
+                  <span className="ml-auto text-xs text-dei-sage font-medium px-3 py-1 rounded-full bg-dei-sage/10">Online</span>
                 </div>
-                {[
-                  { from: "user", text: "Can you explain backpropagation simply?" },
-                  { from: "ai", text: "Think of it like grading a test backwards. The network checks its final answer, sees how wrong it was, then traces back through each layer to figure out which 'neurons' caused the mistake — and adjusts them a tiny bit. Repeat thousands of times, and it learns!" },
-                  { from: "user", text: "That makes sense! What about vanishing gradients?" },
-                ].map((msg, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: 0.3 + i * 0.15, duration: 0.5 }}
-                    className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                        msg.from === "user"
-                          ? "bg-primary text-primary-foreground rounded-br-md"
-                          : "bg-muted/80 text-foreground rounded-bl-md"
-                      }`}
+                
+                <div className="space-y-4">
+                  {[
+                    { from: "user", text: "Can you explain backpropagation simply?" },
+                    { from: "ai", text: "Think of it like grading a test backwards. The network checks its final answer, sees how wrong it was, then traces back through each layer to figure out which 'neurons' caused the mistake — and adjusts them a tiny bit. Repeat thousands of times, and it learns!" },
+                    { from: "user", text: "That makes sense! What about vanishing gradients?" },
+                  ].map((msg, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 15 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ delay: 0.3 + i * 0.15, duration: 0.5, type: "spring" }}
+                      className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}
                     >
-                      {msg.text}
-                    </div>
-                  </motion.div>
-                ))}
-                <div className="flex gap-2 pt-1">
-                  <div className="flex-1 h-10 rounded-xl bg-muted/60 px-4 flex items-center text-sm text-muted-foreground">
+                      <div
+                        className={`max-w-[85%] px-5 py-3.5 rounded-2xl text-[15px] leading-relaxed ${
+                          msg.from === "user"
+                            ? "bg-primary text-primary-foreground rounded-br-sm shadow-md"
+                            : "bg-muted text-foreground rounded-bl-sm border border-border/40"
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+                
+                <div className="flex gap-3 pt-4 border-t border-border/40 mt-4">
+                  <div className="flex-1 h-12 rounded-xl bg-muted/60 px-5 flex items-center text-sm text-muted-foreground border border-border/30">
                     Ask anything...
                   </div>
-                  <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                    <ArrowRight className="w-4 h-4 text-primary-foreground" />
+                  <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-md cursor-pointer hover:bg-primary/90 transition-colors">
+                    <ArrowRight className="w-5 h-5 text-primary-foreground" />
                   </div>
                 </div>
-              </div>
+              </motion.div>
             </AnimatedSection>
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section id="testimonials" className="py-24 md:py-32 px-6 bg-muted/30">
-        <div className="max-w-5xl mx-auto">
-          <AnimatedSection className="text-center mb-16">
+      {/* Testimonials with Staggered Parallax Cards */}
+      <section id="testimonials" ref={testimonialsRef} className="py-24 md:py-32 px-6 bg-muted/30 overflow-hidden">
+        <div className="max-w-6xl mx-auto">
+          <AnimatedSection className="text-center mb-20">
             <p className="text-sm font-medium text-primary mb-3">Stories</p>
             <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-balance">
               Learners who leveled up
             </h2>
           </AnimatedSection>
 
-          <div className="grid md:grid-cols-3 gap-5">
+          <div className="grid md:grid-cols-3 gap-6">
             {testimonials.map((t, i) => (
-              <AnimatedSection key={t.name} delay={i * 0.1}>
-                <motion.div
-                  whileHover={{ y: -3, transition: { duration: 0.25 } }}
-                  className="dei-card p-6 h-full flex flex-col"
-                >
-                  <p className="text-sm text-foreground/90 leading-relaxed flex-1 mb-5">"{t.text}"</p>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${t.gradient} flex items-center justify-center`}>
-                      <span className="text-xs font-bold text-primary-foreground">{t.initials}</span>
+              <motion.div 
+                key={t.name}
+                style={{ y: i % 3 === 0 ? tCol1Y : i % 3 === 1 ? tCol2Y : tCol3Y }} // 3-column alternating scroll speed
+                className="h-full"
+              >
+                <AnimatedSection delay={i * 0.1}>
+                  <motion.div
+                    whileHover={{ scale: 1.03, y: -5 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    className="dei-card p-8 h-full flex flex-col bg-background border border-border/50 shadow-md hover:shadow-xl transition-shadow rounded-[2rem]"
+                  >
+                    <p className="text-base text-foreground/90 leading-relaxed flex-1 mb-8">"{t.text}"</p>
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${t.gradient} flex items-center justify-center shadow-inner`}>
+                        <span className="text-sm font-bold text-primary-foreground">{t.initials}</span>
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold">{t.name}</p>
+                        <p className="text-sm text-muted-foreground">{t.role}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-semibold">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.role}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              </AnimatedSection>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="py-24 md:py-32 px-6">
-        <div className="max-w-4xl mx-auto">
-          <AnimatedSection className="text-center mb-16">
-            <p className="text-sm font-medium text-primary mb-3">Pricing</p>
-            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-balance mb-4">
-              Start free. Scale when ready.
-            </h2>
-          </AnimatedSection>
-
-          <div className="grid md:grid-cols-3 gap-5">
-            {[
-              {
-                name: "Starter",
-                price: "Free",
-                desc: "For curious learners",
-                features: ["5 courses", "Basic AI buddy", "Progress tracking", "Community access"],
-                cta: "Get started",
-                variant: "outline" as const,
-              },
-              {
-                name: "Pro",
-                price: "₹499/mo",
-                desc: "For serious students",
-                features: ["Unlimited courses", "Advanced AI buddy", "Smart quizzes", "Priority support", "Certificates"],
-                cta: "Start Pro trial",
-                variant: "default" as const,
-                popular: true,
-              },
-              {
-                name: "Institution",
-                price: "Custom",
-                desc: "For schools & orgs",
-                features: ["Everything in Pro", "Admin dashboard", "Bulk enrollment", "Analytics API", "White-label"],
-                cta: "Contact sales",
-                variant: "outline" as const,
-              },
-            ].map((plan, i) => (
-              <AnimatedSection key={plan.name} delay={i * 0.08}>
-                <motion.div
-                  whileHover={{ y: -3, transition: { duration: 0.25 } }}
-                  className={`dei-card p-6 h-full flex flex-col relative ${plan.popular ? "ring-2 ring-primary/30" : ""}`}
-                >
-                  {plan.popular && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-medium">
-                      Popular
-                    </span>
-                  )}
-                  <h3 className="text-lg font-bold mb-1">{plan.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-4">{plan.desc}</p>
-                  <p className="text-3xl font-extrabold mb-6">{plan.price}</p>
-                  <ul className="space-y-2.5 mb-8 flex-1">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-dei-sage flex-shrink-0" />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <Button variant={plan.variant} className="w-full rounded-xl">
-                    {plan.cta}
-                  </Button>
-                </motion.div>
-              </AnimatedSection>
+                  </motion.div>
+                </AnimatedSection>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -538,43 +458,45 @@ export default function Landing() {
       {/* CTA */}
       <section className="py-24 md:py-32 px-6">
         <AnimatedSection>
-          <div className="max-w-3xl mx-auto text-center dei-card p-10 md:p-16 relative overflow-hidden">
-            <FloatingOrb className="w-48 h-48 bg-dei-peach -top-10 -right-10" />
-            <FloatingOrb className="w-36 h-36 bg-dei-sky -bottom-8 -left-8" delay={2} />
+          <motion.div 
+            whileHover={{ scale: 1.01 }}
+            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            className="max-w-4xl mx-auto text-center dei-card p-12 md:p-20 relative overflow-hidden bg-primary/5 border border-primary/10 rounded-[3rem] shadow-2xl"
+          >
+            <FloatingOrb className="w-64 h-64 bg-dei-peach -top-20 -right-20" />
+            <FloatingOrb className="w-48 h-48 bg-dei-sky -bottom-10 -left-10" delay={2} />
             <div className="relative z-10">
-              <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-balance mb-4">
+              <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-balance mb-6">
                 Ready to learn smarter?
               </h2>
-              <p className="text-muted-foreground mb-8 max-w-md mx-auto text-pretty">
+              <p className="text-lg text-muted-foreground mb-10 max-w-lg mx-auto text-pretty">
                 Join thousands of learners who are finishing courses, mastering skills, and actually enjoying the process.
               </p>
               <Link to="/student">
-                <Button size="lg" className="rounded-2xl px-10 h-13 text-base shadow-lg shadow-primary/20">
-                  Start for free <ArrowRight className="w-4 h-4 ml-2" />
+                <Button size="lg" className="rounded-2xl px-10 h-14 text-lg shadow-xl shadow-primary/20 hover:scale-105 transition-transform duration-300">
+                  Start for free <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </Link>
             </div>
-          </div>
+          </motion.div>
         </AnimatedSection>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/30 py-12 px-6">
+      <footer className="border-t border-border/30 py-12 px-6 bg-background">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold">D</span>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-sm">
+              <span className="text-primary-foreground font-bold text-lg">D</span>
             </div>
-            <span className="font-bold text-lg">ei</span>
+            <span className="font-bold text-xl">ei</span>
           </div>
-          <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
-            <a href="#" className="hover:text-foreground transition-colors">Terms</a>
-            <a href="#" className="hover:text-foreground transition-colors">Support</a>
-            <Link to="/instructor" className="hover:text-foreground transition-colors">Teach on Dei</Link>
-            <Link to="/admin" className="hover:text-foreground transition-colors">Admin</Link>
+          <div className="flex items-center gap-8 text-sm font-medium text-muted-foreground">
+            <a href="#" className="hover:text-primary transition-colors">Privacy</a>
+            <a href="#" className="hover:text-primary transition-colors">Terms</a>
+            <a href="#" className="hover:text-primary transition-colors">Support</a>
           </div>
-          <p className="text-xs text-muted-foreground">© 2026 Dei. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© 2026 Dei. All rights reserved.</p>
         </div>
       </footer>
     </div>
