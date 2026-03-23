@@ -19,6 +19,12 @@ import StudentCertificatesPage from "./pages/student/Certificates";
 import StudentOnboardingPage from "./pages/student/Onboarding";
 import StudentCourseDetailPage from "./pages/student/CourseDetail";
 import StudentCoursePlayerPage from "./pages/student/CoursePlayer";
+import StudentRoadmapPage from "./pages/student/Roadmap";
+import StudentNeo4jCoursePage from "./pages/student/Neo4jCourse";
+import StudentMyNotesPage from "./pages/student/MyNotes";
+import StudentInstructorVideoCallPage from "./pages/StudentInstructorVideoCall";
+import InstructorLiveSessionPage from "./pages/InstructorLiveSession";
+import StudentJoinSessionPage from "./pages/StudentJoinSession";
 import InstructorDashboardPage from "./pages/instructor/Dashboard";
 import InstructorCourseBuilderPage from "./pages/instructor/CourseBuilder";
 import InstructorTeachingToolsPage from "./pages/instructor/TeachingTools";
@@ -129,6 +135,51 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={["student"]}>
                   <StudentCoursePlayerPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/student/roadmap"
+              element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentRoadmapPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/student/roadmap/course/:id"
+              element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentNeo4jCoursePage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/live-session"
+              element={
+                <ProtectedRoute allowedRoles={["student", "instructor"]}>
+                  <StudentInstructorVideoCallPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/instructor/live-session"
+              element={
+                <ProtectedRoute allowedRoles={["instructor"]}>
+                  <InstructorLiveSessionPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/student/join-session"
+              element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentJoinSessionPage />
                 </ProtectedRoute>
               }
             />

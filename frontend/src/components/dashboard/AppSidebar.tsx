@@ -24,6 +24,8 @@ const navItems = [
   { icon: Calendar, label: "Lecture", to: "/student/lecture" },
   { icon: Trophy, label: "Certificates", to: "/student/certificates" },
   { icon: MessageSquare, label: "Practice", to: "/student/practice" },
+  { icon: FileText, label: "My Notes", to: "/student/notes" },
+  { icon: Network, label: "Roadmap", to: "/student/roadmap" },
   { icon: Sparkles, label: "AI Tools", to: "/student/tools" },
 ];
 
@@ -70,7 +72,9 @@ export function AppSidebar() {
             ? location.pathname === "/student"
             : item.to === "/student/courses"
               ? location.pathname.startsWith(item.to) || isCourseDetail
-              : location.pathname.startsWith(item.to);
+              : item.to === "/student/roadmap"
+                ? location.pathname.startsWith(item.to) || isRoadmapCourse
+                : location.pathname.startsWith(item.to);
 
           return (
             <motion.button
