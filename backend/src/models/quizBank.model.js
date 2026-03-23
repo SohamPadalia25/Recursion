@@ -120,7 +120,7 @@ const quizBankSchema = new mongoose.Schema(
     },
     sourceType: {
       type: String,
-      enum: ["manual", "auto", "prompt", "pdf"],
+      enum: ["manual", "auto", "prompt", "pdf", "topic"],
       default: "manual",
     },
     generationPrompt: {

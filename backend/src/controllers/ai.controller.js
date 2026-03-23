@@ -366,6 +366,93 @@ const analyzeNotes = asyncHandler(async (req, res) => {
   );
 });
 
+// POST /api/v1/ai/doubt/analyze
+const analyzeDoubt = asyncHandler(async (req, res) => {
+  const { lessonTitle, courseTitle, timestamp, transcript, contextSegments } = req.body;
+
+  const normalizedTranscript = String(transcript || "").trim();
+  const normalizedTimestamp = String(timestamp || "").trim();
+  const normalizedContextSegments = Array.isArray(contextSegments)
+    ? contextSegments
+      .map((segment) => ({
+        timestamp: String(segment?.timestamp || "").trim(),
+        text: String(segment?.text || "").trim(),
+      }))
+      .filter((segment) => segment.text)
+      .slice(0, 6)
+    : [];
+
+  if (!normalizedTranscript && !normalizedContextSegments.length) {
+    throw new ApiError(400, "transcript or contextSegments is required");
+  }
+
+  const prompt = [
+    "You are an expert teaching assistant.",
+    "A student marked a doubt at a specific timestamp in a lesson.",
+    "Return ONLY strict JSON in this schema:",
+    "{",
+    '  "explanation": "2-5 sentence direct explanation of this exact part",',
+    '  "simplerExplanation": "A beginner-friendly explanation using simpler words",',
+    '  "relatedPrerequisite": "One prerequisite topic name",',
+    '  "prerequisiteWhy": "1-2 sentence reason why this prerequisite helps"',
+    "}",
+    "Rules:",
+    "- Do not include markdown",
+    "- Keep explanations specific to this lesson moment",
+    "- If transcript is partial, infer carefully and mention assumptions briefly",
+    "Context:",
+    `Course: ${String(courseTitle || "").trim() || "Unknown"}`,
+    `Lesson: ${String(lessonTitle || "").trim() || "Unknown"}`,
+    `Timestamp: ${normalizedTimestamp || "Unknown"}`,
+    `Transcript line: ${normalizedTranscript || "Not available"}`,
+    `Nearby transcript: ${JSON.stringify(normalizedContextSegments)}`,
+  ].join("\n");
+
+  const raw = await chatWithGroq(
+    [
+      {
+        role: "system",
+        content: "Return strictly valid JSON only.",
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+    process.env.GROQ_DOUBT_MODEL,
+    true
+  );
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw || "{}");
+  } catch {
+    throw new ApiError(502, "AI returned invalid response while analyzing doubt");
+  }
+
+  const explanation = String(parsed?.explanation || "").trim();
+  const simplerExplanation = String(parsed?.simplerExplanation || "").trim();
+  const relatedPrerequisite = String(parsed?.relatedPrerequisite || "").trim();
+  const prerequisiteWhy = String(parsed?.prerequisiteWhy || "").trim();
+
+  if (!explanation && !simplerExplanation) {
+    throw new ApiError(502, "AI did not return a usable doubt explanation");
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        explanation,
+        simplerExplanation,
+        relatedPrerequisite,
+        prerequisiteWhy,
+      },
+      "Doubt explanation generated"
+    )
+  );
+});
+
 export {
   getDashboardContext,
   tutorChat,
@@ -383,4 +470,5 @@ export {
   findJobs,
   getLessonTranscript,
   analyzeNotes,
+  analyzeDoubt,
 };

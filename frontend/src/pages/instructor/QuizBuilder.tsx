@@ -40,6 +40,11 @@ const modeConfig = [
     description: "Guide generation with your own prompt.",
   },
   {
+    id: "topic",
+    label: "AI Topic",
+    description: "Generate from a specific topic you provide.",
+  },
+  {
     id: "pdf",
     label: "AI PDF",
     description: "Generate from uploaded PDF content.",
@@ -47,9 +52,10 @@ const modeConfig = [
 ] as const;
 
 export default function InstructorQuizBuilderPage() {
-  const [mode, setMode] = useState<"manual" | "auto" | "prompt" | "pdf">("manual");
+  const [mode, setMode] = useState<"manual" | "auto" | "prompt" | "topic" | "pdf">("manual");
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [topic, setTopic] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [distribution, setDistribution] = useState<QuizDistribution>(defaultDistribution);
   const [maxWarnings, setMaxWarnings] = useState(3);
@@ -110,6 +116,7 @@ export default function InstructorQuizBuilderPage() {
           title: title.trim(),
           sourceType: mode,
           prompt: prompt.trim() || undefined,
+          topic: topic.trim() || undefined,
           pdfFile,
           distribution: { ...distribution, questionsPerStudent: totalConfigured },
           maxWarnings,
@@ -118,6 +125,7 @@ export default function InstructorQuizBuilderPage() {
 
       setTitle("");
       setPrompt("");
+      setTopic("");
       setPdfFile(null);
       setManualQuestions([]);
       await refresh();
@@ -229,6 +237,15 @@ export default function InstructorQuizBuilderPage() {
               placeholder="Describe coverage, difficulty, and focus areas for AI generation..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
+            />
+          ) : null}
+
+          {mode === "topic" ? (
+            <input
+              className="mb-4 h-11 w-full rounded-xl border border-border bg-muted/30 px-3 text-sm outline-none ring-primary/30 focus:ring-2"
+              placeholder="Enter topic (e.g. Dynamic Programming, React Hooks, SQL Joins)"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
             />
           ) : null}
 

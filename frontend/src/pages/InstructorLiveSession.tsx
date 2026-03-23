@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { io } from "socket.io-client";
+import { io, type Socket } from "socket.io-client";
 import * as TwilioVideo from "twilio-video";
 import { useAuth } from "@/auth/AuthContext";
 import { sendLiveSessionInvites } from "@/lib/mailer-api";
@@ -36,6 +36,12 @@ type StoredUser = {
   role?: string;
 };
 
+const getErrorMessage = (err: unknown, fallback = "Something went wrong") => {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  return fallback;
+};
+
 const InstructorLiveSession = () => {
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
@@ -54,12 +60,12 @@ const InstructorLiveSession = () => {
   const [inviteError, setInviteError] = useState("");
   const [inviteStatus, setInviteStatus] = useState("");
 
-  const socketRef = useRef<any>(null);
-  const roomRef = useRef<any>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const roomRef = useRef<TwilioVideo.Room | null>(null);
   const localVideoRef = useRef<HTMLDivElement | null>(null);
 
   const connectToRoom = async (token: string, room: string) => {
-    let lastError: any = null;
+    let lastError: unknown = null;
 
     for (const region of TWILIO_REGION_FALLBACKS) {
       try {
@@ -103,7 +109,7 @@ const InstructorLiveSession = () => {
       return;
     }
 
-    let rawUser = localStorage.getItem("user");
+    const rawUser = localStorage.getItem("user");
     console.log("Loading user from localStorage:", rawUser);
     
     if (!rawUser) {
@@ -223,19 +229,22 @@ const InstructorLiveSession = () => {
       }
 
       console.log("Session started successfully");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error starting session:", err);
       
       // Provide helpful error messages
       let errorMessage = "Failed to start session";
-      if (err.message.includes("Failed to fetch")) {
+      const message = getErrorMessage(err, errorMessage);
+      const maybeCode = typeof err === "object" && err !== null && "code" in err ? String((err as { code?: unknown }).code ?? "") : "";
+
+      if (message.includes("Failed to fetch")) {
         errorMessage = "Cannot connect to backend server. Check VITE_API_BASE_URL and backend status.";
-      } else if (err.message.includes("Backend error")) {
-        errorMessage = `❌ Backend API error: ${err.message}. Check if video endpoint is working.`;
-      } else if (err.message?.toLowerCase().includes("signaling")) {
-        errorMessage = `❌ Twilio signaling failed${err.code ? ` (code ${err.code})` : ""}. Check internet/firewall and verify Twilio project + API key belong to the same account.`;
+      } else if (message.includes("Backend error")) {
+        errorMessage = `❌ Backend API error: ${message}. Check if video endpoint is working.`;
+      } else if (message.toLowerCase().includes("signaling")) {
+        errorMessage = `❌ Twilio signaling failed${maybeCode ? ` (code ${maybeCode})` : ""}. Check internet/firewall and verify Twilio project + API key belong to the same account.`;
       } else {
-        errorMessage = err.message || errorMessage;
+        errorMessage = message || errorMessage;
       }
       
       setError(errorMessage);
@@ -247,11 +256,15 @@ const InstructorLiveSession = () => {
 
   const endSession = () => {
     if (roomRef.current) {
-      roomRef.current.localParticipant.tracks.forEach((publication: any) => {
+      roomRef.current.localParticipant.tracks.forEach((publication: TwilioVideo.LocalTrackPublication) => {
         const track = publication.track;
         if (track) {
-          track.stop();
-          track.detach().forEach((el: HTMLElement) => el.remove());
+          if ("stop" in track) {
+            track.stop();
+          }
+          if ("detach" in track) {
+            track.detach().forEach((el: HTMLElement) => el.remove());
+          }
         }
       });
       roomRef.current.disconnect();
@@ -275,11 +288,13 @@ const InstructorLiveSession = () => {
 
   const toggleMute = () => {
     if (roomRef.current) {
-      roomRef.current.localParticipant.audioTracks.forEach((audioTrack: any) => {
+      roomRef.current.localParticipant.audioTracks.forEach((audioTrack: TwilioVideo.LocalAudioTrackPublication) => {
+        const track = audioTrack.track;
+        if (!track) return;
         if (isMuted) {
-          audioTrack.enable();
+          track.enable();
         } else {
-          audioTrack.disable();
+          track.disable();
         }
       });
     }
@@ -288,11 +303,13 @@ const InstructorLiveSession = () => {
 
   const toggleCamera = () => {
     if (roomRef.current) {
-      roomRef.current.localParticipant.videoTracks.forEach((videoTrack: any) => {
+      roomRef.current.localParticipant.videoTracks.forEach((videoTrack: TwilioVideo.LocalVideoTrackPublication) => {
+        const track = videoTrack.track;
+        if (!track) return;
         if (isCameraOff) {
-          videoTrack.enable();
+          track.enable();
         } else {
-          videoTrack.disable();
+          track.disable();
         }
       });
     }
@@ -353,8 +370,8 @@ const InstructorLiveSession = () => {
           `Some invites failed (email: ${result.failedEmails.length}, WhatsApp: ${result.failedWhatsApp.length}).`,
         );
       }
-    } catch (err: any) {
-      setInviteError(err?.message || "Failed to send invites");
+    } catch (err: unknown) {
+      setInviteError(getErrorMessage(err, "Failed to send invites"));
     } finally {
       setInviteLoading(false);
     }
@@ -402,7 +419,6 @@ const InstructorLiveSession = () => {
       el.className = "w-full h-full object-cover rounded-2xl";
       localVideoRef.current.appendChild(el);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionStarted]);
 
   if (!sessionStarted) {

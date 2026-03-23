@@ -6,17 +6,77 @@ import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { studentNav } from "../roleNav";
 import {
+    analyzeLessonNotes,
+    analyzeLessonDoubt,
     getCourseDetail,
     getCourseProgress,
     getLessonDetail,
+    getLessonTranscript,
     saveLessonAttentionScore,
     updateLessonWatchTime,
 } from "@/lib/course-api";
+
+type FaceLandmarkPoint = {
+    x: number;
+    y: number;
+};
+
+type FaceLandmarkerResultLike = {
+    faceLandmarks?: FaceLandmarkPoint[][];
+};
+
+type FaceLandmarkerLike = {
+    detectForVideo: (video: HTMLVideoElement, timestampMs: number) => FaceLandmarkerResultLike;
+    close?: () => Promise<void> | void;
+};
 
 const FAST_FORWARD_THRESHOLD = 1.5;
 const SEEK_EVENT_WINDOW_MS = 60_000;
 const SEEK_EVENT_THRESHOLD = 4;
 const SUSPICIOUS_EVENT_THRESHOLD = 3;
+
+type TranscriptSegment = {
+    id: string;
+    start: number;
+    end: number;
+    text: string;
+};
+
+type TimestampNote = {
+    id: string;
+    timestamp: string;
+    second: number;
+    text: string;
+    tags: string[];
+};
+
+type PlainTextNote = {
+    id: string;
+    text: string;
+    createdAt: number;
+};
+
+type DoubtEntry = {
+    id: string;
+    timestamp: string;
+    second: number;
+    transcript: string;
+    frameDataUrl: string;
+    createdAt: number;
+    loading: boolean;
+    error: string;
+    aiExplanation: string;
+    aiSimplerExplanation: string;
+    aiPrerequisite: string;
+    aiPrerequisiteWhy: string;
+};
+
+function formatDuration(seconds: number) {
+    const total = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(total / 60);
+    const remainingSeconds = total % 60;
+    return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
 
 export default function StudentCoursePlayerPage() {
     const { courseId, weekIdx, lectureIdx } = useParams();
@@ -40,6 +100,24 @@ export default function StudentCoursePlayerPage() {
         Record<string, { watchedSeconds: number; requiredWatchSeconds: number; isCompleted: boolean }>
     >({});
     const [suspiciousEvents, setSuspiciousEvents] = useState(0);
+    const [currentVideoTime, setCurrentVideoTime] = useState(0);
+    const [transcriptLoading, setTranscriptLoading] = useState(false);
+    const [transcriptError, setTranscriptError] = useState("");
+    const [transcriptQuery, setTranscriptQuery] = useState("");
+    const [transcriptSegments, setTranscriptSegments] = useState<TranscriptSegment[]>([]);
+    const [noteInput, setNoteInput] = useState("");
+    const [noteTagsInput, setNoteTagsInput] = useState("");
+    const [notes, setNotes] = useState<TimestampNote[]>([]);
+    const [notesSavedAt, setNotesSavedAt] = useState("");
+    const [notesSearch, setNotesSearch] = useState("");
+    const [aiNotesLoading, setAiNotesLoading] = useState(false);
+    const [aiNotesError, setAiNotesError] = useState("");
+    const [aiSummary, setAiSummary] = useState<string[]>([]);
+    const [aiFlashcards, setAiFlashcards] = useState<Array<{ question: string; answer: string; timestamp?: string }>>([]);
+    const [aiConcepts, setAiConcepts] = useState<Array<{ concept: string; reason?: string; timestamp?: string }>>([]);
+    const [plainNoteInput, setPlainNoteInput] = useState("");
+    const [plainNotes, setPlainNotes] = useState<PlainTextNote[]>([]);
+    const [doubtEntries, setDoubtEntries] = useState<DoubtEntry[]>([]);
 
     const moduleIndex = Number(weekIdx ?? 0);
     const lessonIndex = Number(lectureIdx ?? 0);
@@ -48,7 +126,7 @@ export default function StudentCoursePlayerPage() {
     const webcamCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const webcamStreamRef = useRef<MediaStream | null>(null);
     const trackerLoopRef = useRef<number | null>(null);
-    const faceLandmarkerRef = useRef<any>(null);
+    const faceLandmarkerRef = useRef<FaceLandmarkerLike | null>(null);
     const lastSyncAtRef = useRef(0);
     const persistedWatchRef = useRef(0);
     const lastPlaybackTimeRef = useRef<number | null>(null);
@@ -94,6 +172,10 @@ export default function StudentCoursePlayerPage() {
         const lesson = module?.lessons?.[lessonIndex];
         return lesson?._id;
     }, [courseData, moduleIndex, lessonIndex]);
+
+    const notesStorageKey = useMemo(() => {
+        return activeLessonId ? `course-player-notes:${activeLessonId}` : "";
+    }, [activeLessonId]);
 
     const activeLessonDuration = useMemo(() => {
         const module = courseData?.modules?.[moduleIndex];
@@ -147,6 +229,133 @@ export default function StudentCoursePlayerPage() {
         }
 
         loadLesson();
+
+        return () => {
+            mounted = false;
+        };
+    }, [activeLessonId]);
+
+    useEffect(() => {
+        if (!notesStorageKey) {
+            setNotes([]);
+            setAiSummary([]);
+            setAiFlashcards([]);
+            setAiConcepts([]);
+            setNotesSavedAt("");
+            return;
+        }
+
+        const raw = localStorage.getItem(notesStorageKey);
+        if (!raw) {
+            setNotes([]);
+            setAiSummary([]);
+            setAiFlashcards([]);
+            setAiConcepts([]);
+            setNotesSavedAt("");
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(raw) as {
+                notes?: TimestampNote[];
+                aiSummary?: string[];
+                aiFlashcards?: Array<{ question: string; answer: string; timestamp?: string }>;
+                aiConcepts?: Array<{ concept: string; reason?: string; timestamp?: string }>;
+                plainNoteInput?: string;
+                plainNotes?: PlainTextNote[];
+                doubtEntries?: DoubtEntry[];
+                updatedAt?: number;
+            };
+
+            setNotes(Array.isArray(parsed.notes) ? parsed.notes : []);
+            setAiSummary(Array.isArray(parsed.aiSummary) ? parsed.aiSummary : []);
+            setAiFlashcards(Array.isArray(parsed.aiFlashcards) ? parsed.aiFlashcards : []);
+            setAiConcepts(Array.isArray(parsed.aiConcepts) ? parsed.aiConcepts : []);
+            setPlainNoteInput(typeof parsed.plainNoteInput === "string" ? parsed.plainNoteInput : "");
+            setPlainNotes(Array.isArray(parsed.plainNotes) ? parsed.plainNotes : []);
+            setDoubtEntries(
+                Array.isArray(parsed.doubtEntries)
+                    ? parsed.doubtEntries.map((entry) => ({
+                          ...entry,
+                          loading: false,
+                          error: "",
+                          aiExplanation: String(entry?.aiExplanation || ""),
+                          aiSimplerExplanation: String(entry?.aiSimplerExplanation || ""),
+                          aiPrerequisite: String(entry?.aiPrerequisite || ""),
+                          aiPrerequisiteWhy: String(entry?.aiPrerequisiteWhy || ""),
+                      }))
+                    : []
+            );
+            setNotesSavedAt(parsed.updatedAt ? new Date(parsed.updatedAt).toLocaleTimeString() : "");
+        } catch {
+            setNotes([]);
+            setAiSummary([]);
+            setAiFlashcards([]);
+            setAiConcepts([]);
+            setPlainNoteInput("");
+            setPlainNotes([]);
+            setDoubtEntries([]);
+            setNotesSavedAt("");
+        }
+    }, [notesStorageKey]);
+
+    useEffect(() => {
+        if (!notesStorageKey) return;
+        const payload = {
+            notes,
+            aiSummary,
+            aiFlashcards,
+            aiConcepts,
+            plainNoteInput,
+            plainNotes,
+            doubtEntries: doubtEntries.map((entry) => ({
+                ...entry,
+                loading: false,
+                error: "",
+            })),
+            updatedAt: Date.now(),
+        };
+        localStorage.setItem(notesStorageKey, JSON.stringify(payload));
+        setNotesSavedAt(new Date(payload.updatedAt).toLocaleTimeString());
+    }, [aiConcepts, aiFlashcards, aiSummary, notes, notesStorageKey, plainNoteInput, plainNotes, doubtEntries]);
+
+    useEffect(() => {
+        let mounted = true;
+
+        async function loadTranscript() {
+            if (!activeLessonId) {
+                setTranscriptSegments([]);
+                setTranscriptError("");
+                return;
+            }
+
+            setTranscriptLoading(true);
+            setTranscriptError("");
+
+            try {
+                const transcript = await getLessonTranscript(activeLessonId);
+                if (!mounted) return;
+
+                const normalized = (transcript.segments || [])
+                    .map((segment, index) => ({
+                        id: String(segment.id || index),
+                        start: Number(segment.start || 0),
+                        end: Number(segment.end || Number(segment.start || 0) + 2),
+                        text: String(segment.text || "").trim(),
+                    }))
+                    .filter((segment) => Boolean(segment.text));
+
+                setTranscriptSegments(normalized);
+            } catch (err) {
+                if (!mounted) return;
+                setTranscriptSegments([]);
+                setTranscriptError(err instanceof Error ? err.message : "Failed to load transcript");
+            } finally {
+                if (mounted) setTranscriptLoading(false);
+            }
+        }
+
+        void loadTranscript();
 
         return () => {
             mounted = false;
@@ -425,6 +634,7 @@ export default function StudentCoursePlayerPage() {
                 await webcamVideo.play();
 
                 setTrackerStatus("Loading eye model...");
+                // @ts-expect-error: package resolves at runtime; local TS env may miss its type declarations.
                 const vision = await import("@mediapipe/tasks-vision");
                 const filesetResolver = await vision.FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
@@ -594,11 +804,37 @@ export default function StudentCoursePlayerPage() {
         return cvAttentionScore;
     }, [attentionScore, cvAttentionScore]);
 
+    const filteredTranscript = useMemo(() => {
+        const q = transcriptQuery.trim().toLowerCase();
+        if (!q) return transcriptSegments;
+        return transcriptSegments.filter((segment) => segment.text.toLowerCase().includes(q));
+    }, [transcriptQuery, transcriptSegments]);
+
+    const filteredNotes = useMemo(() => {
+        const q = notesSearch.trim().toLowerCase();
+        if (!q) return notes;
+        return notes.filter((note) => {
+            const inText = note.text.toLowerCase().includes(q);
+            const inTags = note.tags.some((tag) => tag.toLowerCase().includes(q));
+            return inText || inTags;
+        });
+    }, [notes, notesSearch]);
+
+    const activeTranscriptId = useMemo(() => {
+        const active = transcriptSegments.find((segment) => currentVideoTime >= segment.start && currentVideoTime < segment.end);
+        return active?.id || null;
+    }, [currentVideoTime, transcriptSegments]);
+
+    const activeTranscriptSegment = useMemo(() => {
+        return transcriptSegments.find((segment) => currentVideoTime >= segment.start && currentVideoTime < segment.end) || null;
+    }, [currentVideoTime, transcriptSegments]);
+
     const handleVideoTimeUpdate = useCallback(() => {
         const video = videoRef.current;
         if (!video) return;
 
         const current = Number(video.currentTime || 0);
+        setCurrentVideoTime(current);
         const previous = lastPlaybackTimeRef.current;
         const now = performance.now();
         const previousTick = lastPlaybackTickAtRef.current;
@@ -663,7 +899,7 @@ export default function StudentCoursePlayerPage() {
         }
 
         void persistAttentionScore();
-    }, [persistAttentionScore, persistWatchProgress]);
+    }, [activeLessonId, persistAttentionScore, persistWatchProgress]);
 
     const handleVideoPlay = useCallback(() => {
         const video = videoRef.current;
@@ -696,9 +932,212 @@ export default function StudentCoursePlayerPage() {
         const video = videoRef.current;
         if (video) {
             lastPlaybackTimeRef.current = Number(video.currentTime || 0);
+            setCurrentVideoTime(Number(video.currentTime || 0));
         }
         isSeekingRef.current = false;
     }, []);
+
+    const handleTranscriptSeek = useCallback((time: number) => {
+        const video = videoRef.current;
+        if (!video) return;
+        video.currentTime = Math.max(0, time);
+        setCurrentVideoTime(Math.max(0, time));
+        void video.play().catch(() => {});
+    }, []);
+
+    const addTimestampNote = () => {
+        const text = noteInput.trim();
+        if (!text) return;
+
+        const second = Math.max(0, Math.floor(currentVideoTime));
+        const timestamp = formatDuration(second);
+        const tags = noteTagsInput
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+            .slice(0, 8);
+
+        const newNote: TimestampNote = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            timestamp,
+            second,
+            text,
+            tags,
+        };
+
+        setNotes((prev) => [newNote, ...prev]);
+        setNoteInput("");
+        setNoteTagsInput("");
+    };
+
+    const removeNote = (noteId: string) => {
+        setNotes((prev) => prev.filter((note) => note.id !== noteId));
+    };
+
+    const addPlainNote = () => {
+        const text = plainNoteInput.trim();
+        if (!text) return;
+
+        const nextNote: PlainTextNote = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            text,
+            createdAt: Date.now(),
+        };
+
+        setPlainNotes((prev) => [nextNote, ...prev]);
+        setPlainNoteInput("");
+    };
+
+    const removePlainNote = (noteId: string) => {
+        setPlainNotes((prev) => prev.filter((note) => note.id !== noteId));
+    };
+
+    const captureCurrentFrame = () => {
+        const video = videoRef.current;
+        if (!video || video.readyState < 2) return "";
+
+        const maxWidth = 320;
+        const sourceWidth = video.videoWidth || 320;
+        const sourceHeight = video.videoHeight || 180;
+        const width = Math.min(maxWidth, sourceWidth);
+        const height = Math.max(1, Math.round((sourceHeight / sourceWidth) * width));
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return "";
+
+        ctx.drawImage(video, 0, 0, width, height);
+        return canvas.toDataURL("image/jpeg", 0.65);
+    };
+
+    const markDoubt = async () => {
+        const second = Math.max(0, Math.floor(currentVideoTime));
+        const timestamp = formatDuration(second);
+        const frameDataUrl = captureCurrentFrame();
+        const transcript = activeTranscriptSegment?.text || "Transcript not available for this exact moment.";
+        const id = `doubt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+        const entry: DoubtEntry = {
+            id,
+            timestamp,
+            second,
+            transcript,
+            frameDataUrl,
+            createdAt: Date.now(),
+            loading: true,
+            error: "",
+            aiExplanation: "",
+            aiSimplerExplanation: "",
+            aiPrerequisite: "",
+            aiPrerequisiteWhy: "",
+        };
+
+        setDoubtEntries((prev) => [entry, ...prev]);
+
+        try {
+            const idx = transcriptSegments.findIndex((segment) => segment.id === activeTranscriptSegment?.id);
+            const nearby = idx >= 0
+                ? transcriptSegments.slice(Math.max(0, idx - 2), Math.min(transcriptSegments.length, idx + 3))
+                : transcriptSegments
+                      .filter((segment) => Math.abs(segment.start - second) <= 10)
+                      .slice(0, 5);
+
+            const result = await analyzeLessonDoubt({
+                lessonTitle: activeLesson?.title,
+                courseTitle: courseData?.course?.title,
+                timestamp,
+                transcript,
+                contextSegments: nearby.map((segment) => ({
+                    timestamp: formatDuration(segment.start),
+                    text: segment.text,
+                })),
+            });
+
+            setDoubtEntries((prev) =>
+                prev.map((item) =>
+                    item.id === id
+                        ? {
+                              ...item,
+                              loading: false,
+                              aiExplanation: result.explanation || "",
+                              aiSimplerExplanation: result.simplerExplanation || "",
+                              aiPrerequisite: result.relatedPrerequisite || "",
+                              aiPrerequisiteWhy: result.prerequisiteWhy || "",
+                          }
+                        : item
+                )
+            );
+        } catch (err) {
+            setDoubtEntries((prev) =>
+                prev.map((item) =>
+                    item.id === id
+                        ? {
+                              ...item,
+                              loading: false,
+                              error: err instanceof Error ? err.message : "Failed to analyze doubt",
+                          }
+                        : item
+                )
+            );
+        }
+    };
+
+    const removeDoubt = (doubtId: string) => {
+        setDoubtEntries((prev) => prev.filter((doubt) => doubt.id !== doubtId));
+    };
+
+    const savePlainNotes = () => {
+        if (!notesStorageKey) return;
+        const payload = {
+            notes,
+            aiSummary,
+            aiFlashcards,
+            aiConcepts,
+            plainNoteInput,
+            plainNotes,
+            doubtEntries: doubtEntries.map((entry) => ({
+                ...entry,
+                loading: false,
+                error: "",
+            })),
+            updatedAt: Date.now(),
+        };
+        localStorage.setItem(notesStorageKey, JSON.stringify(payload));
+        setNotesSavedAt(new Date(payload.updatedAt).toLocaleTimeString());
+    };
+
+    const runAiNotesEnhancement = async () => {
+        if (!notes.length) {
+            setAiNotesError("Add notes first to generate AI insights.");
+            return;
+        }
+
+        setAiNotesLoading(true);
+        setAiNotesError("");
+
+        try {
+            const result = await analyzeLessonNotes({
+                lessonTitle: activeLesson?.title,
+                courseTitle: courseData?.course?.title,
+                notes: notes.map((note) => ({
+                    id: note.id,
+                    timestamp: note.timestamp,
+                    text: note.text,
+                    tags: note.tags,
+                })),
+            });
+
+            setAiSummary(result.summary || []);
+            setAiFlashcards(result.flashcards || []);
+            setAiConcepts(result.concepts || []);
+        } catch (err) {
+            setAiNotesError(err instanceof Error ? err.message : "Failed to run AI notes enhancements");
+        } finally {
+            setAiNotesLoading(false);
+        }
+    };
 
     const handleVideoPause = useCallback(() => {
         void persistWatchProgress(true);
@@ -875,6 +1314,293 @@ export default function StudentCoursePlayerPage() {
                             </div>
                         </article>
                     ) : null}
+
+                    <article className="rounded-xl border border-border bg-card p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <h3 className="text-base font-semibold text-foreground">AI Transcript (LIVE)</h3>
+                            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Real-time</span>
+                        </div>
+
+                        <div className="mt-3">
+                            <input
+                                type="search"
+                                value={transcriptQuery}
+                                onChange={(e) => setTranscriptQuery(e.target.value)}
+                                placeholder="Search inside video transcript..."
+                                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+                            />
+                        </div>
+
+                        <div className="mt-3 max-h-72 space-y-1 overflow-y-auto rounded-lg border border-border/80 bg-muted/20 p-2">
+                            {transcriptLoading ? (
+                                <p className="px-2 py-3 text-sm text-muted-foreground">Generating transcript from video...</p>
+                            ) : transcriptError ? (
+                                <p className="px-2 py-3 text-sm text-destructive">{transcriptError}</p>
+                            ) : filteredTranscript.length ? (
+                                filteredTranscript.map((segment) => {
+                                    const isActive = segment.id === activeTranscriptId;
+                                    return (
+                                        <button
+                                            key={segment.id}
+                                            type="button"
+                                            onClick={() => handleTranscriptSeek(segment.start)}
+                                            className={`w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors ${isActive ? "bg-primary/15 text-primary" : "hover:bg-muted text-foreground"}`}
+                                        >
+                                            <span className="mr-2 text-xs text-muted-foreground">[{formatDuration(segment.start)}]</span>
+                                            <span className={isActive ? "font-semibold" : ""}>{segment.text}</span>
+                                        </button>
+                                    );
+                                })
+                            ) : (
+                                <p className="px-2 py-3 text-sm text-muted-foreground">
+                                    {transcriptSegments.length ? "No transcript lines match your search." : "No transcript available for this lesson yet."}
+                                </p>
+                            )}
+                        </div>
+                    </article>
+
+                    <article className="rounded-xl border border-border bg-card p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h3 className="text-base font-semibold text-foreground">Doubt Marking System</h3>
+                            <Button type="button" size="sm" onClick={markDoubt}>
+                                Mark Doubt @ {formatDuration(currentVideoTime)}
+                            </Button>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Captures timestamp, current video frame, and transcript. AI explains instantly with a simpler version and prerequisite.
+                        </p>
+
+                        <div className="mt-3 max-h-72 space-y-3 overflow-y-auto rounded-lg border border-border/80 bg-muted/20 p-2">
+                            {doubtEntries.length ? (
+                                doubtEntries.map((doubt) => (
+                                    <div key={doubt.id} className="rounded-md border border-border bg-background p-3">
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleTranscriptSeek(doubt.second)}
+                                                className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary"
+                                            >
+                                                {doubt.timestamp}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeDoubt(doubt.id)}
+                                                className="ml-auto text-xs text-destructive"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+
+                                        {doubt.frameDataUrl ? (
+                                            <img
+                                                src={doubt.frameDataUrl}
+                                                alt={`Doubt frame at ${doubt.timestamp}`}
+                                                className="mt-2 h-24 w-full rounded border border-border object-cover"
+                                            />
+                                        ) : null}
+
+                                        <p className="mt-2 text-xs text-muted-foreground">Transcript</p>
+                                        <p className="text-sm text-foreground">{doubt.transcript}</p>
+
+                                        {doubt.loading ? <p className="mt-2 text-xs text-muted-foreground">AI is analyzing this doubt...</p> : null}
+                                        {doubt.error ? <p className="mt-2 text-xs text-destructive">{doubt.error}</p> : null}
+
+                                        {doubt.aiExplanation ? (
+                                            <div className="mt-2 rounded-md border border-border/80 p-2">
+                                                <p className="text-xs font-semibold text-foreground">AI Explanation</p>
+                                                <p className="mt-1 text-sm text-muted-foreground">{doubt.aiExplanation}</p>
+                                            </div>
+                                        ) : null}
+
+                                        {doubt.aiSimplerExplanation ? (
+                                            <div className="mt-2 rounded-md border border-border/80 p-2">
+                                                <p className="text-xs font-semibold text-foreground">Simpler Explanation</p>
+                                                <p className="mt-1 text-sm text-muted-foreground">{doubt.aiSimplerExplanation}</p>
+                                            </div>
+                                        ) : null}
+
+                                        {doubt.aiPrerequisite ? (
+                                            <div className="mt-2 rounded-md border border-border/80 p-2">
+                                                <p className="text-xs font-semibold text-foreground">Related Prerequisite</p>
+                                                <p className="mt-1 text-sm text-muted-foreground">{doubt.aiPrerequisite}</p>
+                                                {doubt.aiPrerequisiteWhy ? (
+                                                    <p className="mt-1 text-xs text-muted-foreground">Why: {doubt.aiPrerequisiteWhy}</p>
+                                                ) : null}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="px-2 py-3 text-sm text-muted-foreground">No doubts marked yet.</p>
+                            )}
+                        </div>
+                    </article>
+
+                    <article className="rounded-xl border border-border bg-card p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h3 className="text-base font-semibold text-foreground">Normal Text Notepad</h3>
+                            <p className="text-xs text-muted-foreground">Saved{notesSavedAt ? ` at ${notesSavedAt}` : ""}</p>
+                        </div>
+
+                        <textarea
+                            value={plainNoteInput}
+                            onChange={(e) => setPlainNoteInput(e.target.value)}
+                            placeholder="Write simple text notes here..."
+                            className="mt-3 min-h-28 w-full rounded-md border border-border bg-background p-3 text-sm"
+                        />
+
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            <Button type="button" size="sm" onClick={addPlainNote} disabled={!plainNoteInput.trim()}>
+                                Add
+                            </Button>
+                            <Button type="button" size="sm" variant="outline" onClick={savePlainNotes}>
+                                Save
+                            </Button>
+                        </div>
+
+                        <div className="mt-3 max-h-56 space-y-2 overflow-y-auto rounded-lg border border-border/80 bg-muted/20 p-2">
+                            {plainNotes.length ? (
+                                plainNotes.map((note) => (
+                                    <div key={note.id} className="rounded-md border border-border bg-background p-2">
+                                        <div className="flex items-start gap-2">
+                                            <p className="text-sm text-foreground whitespace-pre-wrap">{note.text}</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => removePlainNote(note.id)}
+                                                className="ml-auto text-xs text-destructive"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="px-2 py-3 text-sm text-muted-foreground">No plain-text notes yet. Type and click Add.</p>
+                            )}
+                        </div>
+                    </article>
+
+                    <article className="rounded-xl border border-border bg-card p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h3 className="text-base font-semibold text-foreground">Timestamp Notes</h3>
+                            <p className="text-xs text-muted-foreground">Current: {formatDuration(currentVideoTime)}</p>
+                        </div>
+
+                        <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_200px_auto]">
+                            <input
+                                value={noteInput}
+                                onChange={(e) => setNoteInput(e.target.value)}
+                                placeholder='Example: "React Hooks explanation"'
+                                className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+                            />
+                            <input
+                                value={noteTagsInput}
+                                onChange={(e) => setNoteTagsInput(e.target.value)}
+                                placeholder="tags: react, hooks"
+                                className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+                            />
+                            <Button type="button" size="sm" className="h-9" onClick={addTimestampNote}>
+                                Add @ {formatDuration(currentVideoTime)}
+                            </Button>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                            <input
+                                value={notesSearch}
+                                onChange={(e) => setNotesSearch(e.target.value)}
+                                placeholder="Search notes or tags..."
+                                className="h-8 w-full max-w-[280px] rounded-md border border-border bg-background px-3 text-xs"
+                            />
+                            <p className="text-xs text-muted-foreground">Auto-saved{notesSavedAt ? ` at ${notesSavedAt}` : ""}</p>
+                        </div>
+
+                        <div className="mt-3 max-h-64 space-y-2 overflow-y-auto rounded-lg border border-border/80 bg-muted/20 p-2">
+                            {filteredNotes.length ? (
+                                filteredNotes.map((note) => (
+                                    <div key={note.id} className="rounded-md border border-border bg-background p-2">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleTranscriptSeek(note.second)}
+                                                className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary"
+                                            >
+                                                {note.timestamp}
+                                            </button>
+                                            <p className="text-sm text-foreground">{note.text}</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeNote(note.id)}
+                                                className="ml-auto text-xs text-destructive"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                        {note.tags.length ? (
+                                            <div className="mt-2 flex flex-wrap gap-1">
+                                                {note.tags.map((tag) => (
+                                                    <span key={`${note.id}-${tag}`} className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">#{tag}</span>
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ))
+                            ) : (
+                                <p className="px-2 py-3 text-sm text-muted-foreground">No notes yet. Add your first timestamp note.</p>
+                            )}
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Button type="button" size="sm" onClick={runAiNotesEnhancement} disabled={aiNotesLoading || !notes.length}>
+                                {aiNotesLoading ? "Generating AI insights..." : "AI: Summary + Flashcards + Concepts"}
+                            </Button>
+                            {aiNotesError ? <p className="text-xs text-destructive">{aiNotesError}</p> : null}
+                        </div>
+
+                        {aiSummary.length ? (
+                            <div className="mt-3 rounded-lg border border-border bg-background p-3">
+                                <h4 className="text-sm font-semibold text-foreground">Auto-generated summary</h4>
+                                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                                    {aiSummary.map((line, index) => (
+                                        <li key={`summary-${index}`}>{line}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ) : null}
+
+                        {aiConcepts.length ? (
+                            <div className="mt-3 rounded-lg border border-border bg-background p-3">
+                                <h4 className="text-sm font-semibold text-foreground">Important concepts</h4>
+                                <div className="mt-2 space-y-2">
+                                    {aiConcepts.map((concept, index) => (
+                                        <div key={`concept-${index}`} className="rounded-md border border-border/80 p-2">
+                                            <p className="text-sm font-medium text-foreground">
+                                                {concept.timestamp ? `${concept.timestamp} - ` : ""}
+                                                {concept.concept}
+                                            </p>
+                                            {concept.reason ? <p className="mt-1 text-xs text-muted-foreground">{concept.reason}</p> : null}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {aiFlashcards.length ? (
+                            <div className="mt-3 rounded-lg border border-border bg-background p-3">
+                                <h4 className="text-sm font-semibold text-foreground">Notes to flashcards</h4>
+                                <div className="mt-2 space-y-2">
+                                    {aiFlashcards.map((card, index) => (
+                                        <div key={`card-${index}`} className="rounded-md border border-border/80 p-2">
+                                            <p className="text-xs text-muted-foreground">
+                                                {card.timestamp ? `${card.timestamp} - ` : ""}Q
+                                            </p>
+                                            <p className="text-sm font-medium text-foreground">{card.question}</p>
+                                            <p className="mt-1 text-sm text-muted-foreground">A: {card.answer}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : null}
+                    </article>
                 </section>
 
                 <aside className="rounded-xl border border-border/90 bg-card xl:sticky xl:top-24 self-start overflow-hidden shadow-sm">
