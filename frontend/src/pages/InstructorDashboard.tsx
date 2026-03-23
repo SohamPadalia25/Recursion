@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   BookOpen,
@@ -22,8 +23,10 @@ import {
   ChevronDown,
   ArrowUpRight,
   GraduationCap,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/auth/AuthContext";
 import {
   AreaChart,
   Area,
@@ -37,12 +40,11 @@ import {
 } from "recharts";
 
 const sidebarItems = [
-  { icon: LayoutDashboard, label: "Overview", active: true },
-  { icon: BookOpen, label: "My Courses" },
-  { icon: Users, label: "Students" },
-  { icon: BarChart3, label: "Analytics" },
-  { icon: MessageSquare, label: "Messages" },
-  { icon: Settings, label: "Settings" },
+  { icon: LayoutDashboard, label: "Overview", to: "/instructor" },
+  { icon: BookOpen, label: "Course Builder", to: "/instructor/course-builder" },
+  { icon: Users, label: "Teaching Tools", to: "/instructor/teaching-tools" },
+  { icon: BarChart3, label: "Analytics", to: "/instructor/analytics" },
+  { icon: MessageSquare, label: "Quiz Builder", to: "/instructor/quiz-builder" },
 ];
 
 const enrollmentData = [
@@ -131,7 +133,9 @@ const item = {
 
 export default function InstructorDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [activeNav, setActiveNav] = useState(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -156,33 +160,46 @@ export default function InstructorDashboard() {
         </div>
 
         <nav className="flex-1 py-4 px-2 space-y-1">
-          {sidebarItems.map((navItem, i) => (
-            <motion.button
-              key={navItem.label}
-              onClick={() => setActiveNav(i)}
-              whileTap={{ scale: 0.96 }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200 relative ${
-                activeNav === i ? "bg-dei-sage/15 text-dei-sage" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-              }`}
-            >
-              {activeNav === i && (
-                <motion.div
-                  layoutId="instructor-sidebar-active"
-                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-dei-sage rounded-r-full"
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                />
-              )}
-              <navItem.icon className="w-5 h-5 flex-shrink-0" />
-              {!sidebarCollapsed && (
-                <motion.span initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} className="text-sm font-medium whitespace-nowrap">
-                  {navItem.label}
-                </motion.span>
-              )}
-            </motion.button>
-          ))}
+          {sidebarItems.map((navItem) => {
+            const isActive = navItem.to === "/instructor" ? location.pathname === "/instructor" : location.pathname.startsWith(navItem.to);
+
+            return (
+              <motion.button
+                key={navItem.label}
+                onClick={() => navigate(navItem.to)}
+                whileTap={{ scale: 0.96 }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors duration-200 relative ${isActive ? "bg-dei-sage/15 text-dei-sage" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                  }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="instructor-sidebar-active"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-dei-sage rounded-r-full"
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  />
+                )}
+                <navItem.icon className="w-5 h-5 flex-shrink-0" />
+                {!sidebarCollapsed && (
+                  <motion.span initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} className="text-sm font-medium whitespace-nowrap">
+                    {navItem.label}
+                  </motion.span>
+                )}
+              </motion.button>
+            );
+          })}
         </nav>
 
-        <div className="p-2 border-t border-border/50">
+        <div className="space-y-1 p-2 border-t border-border/50">
+          <button
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+          >
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm font-medium">Logout</span>}
+          </button>
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="w-full flex items-center justify-center py-2 rounded-xl text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
@@ -218,6 +235,16 @@ export default function InstructorDashboard() {
                 <span className="text-xs font-bold text-primary-foreground">SM</span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
+            </button>
+            <button
+              onClick={() => {
+                logout();
+                navigate("/login");
+              }}
+              className="flex h-9 items-center gap-1 rounded-xl bg-muted/60 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Logout
             </button>
           </div>
         </motion.header>
@@ -367,9 +394,8 @@ export default function InstructorDashboard() {
                         )}
                       </td>
                       <td className="py-3.5">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          course.status === "Published" ? "bg-dei-sage/10 text-dei-sage" : "bg-muted text-muted-foreground"
-                        }`}>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${course.status === "Published" ? "bg-dei-sage/10 text-dei-sage" : "bg-muted text-muted-foreground"
+                          }`}>
                           {course.status}
                         </span>
                       </td>

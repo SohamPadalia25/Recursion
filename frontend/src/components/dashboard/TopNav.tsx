@@ -1,7 +1,12 @@
-import { Search, Bell, ChevronDown } from "lucide-react";
+import { Search, Bell, ChevronDown, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/auth/AuthContext";
 
 export function TopNav() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -12 }}
@@ -39,6 +44,17 @@ export function TopNav() {
             <span className="text-xs font-bold text-primary-foreground">AK</span>
           </div>
           <ChevronDown className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
+        </button>
+
+        <button
+          onClick={() => {
+            logout();
+            navigate("/login");
+          }}
+          className="flex h-9 items-center gap-1 rounded-xl bg-muted/60 px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+          Logout
         </button>
       </div>
     </motion.header>

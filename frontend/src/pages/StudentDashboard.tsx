@@ -5,6 +5,7 @@ import { LearningPlan } from "@/components/dashboard/LearningPlan";
 import { EventsPanel } from "@/components/dashboard/EventsPanel";
 import { ProgressChart } from "@/components/dashboard/ProgressChart";
 import { AIBuddy } from "@/components/dashboard/AIBuddy";
+import { TrendingCourses } from "@/components/dashboard/TrendingCourses";
 
 const StudentDashboard = () => {
   return (
@@ -17,6 +18,10 @@ const StudentDashboard = () => {
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
           <div className="mb-6">
             <StatsPanel />
+          </div>
+
+          <div className="mb-6">
+            <TrendingCourses />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
