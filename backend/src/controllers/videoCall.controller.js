@@ -12,6 +12,30 @@ if (!twilioAccountSid || !twilioAuthToken || !twilioApiKey || !twilioApiSecret) 
   console.warn("Warning: Twilio credentials not fully configured in environment variables");
 }
 
+let credentialsValidated = false;
+
+const validateTwilioCredentialsConsistency = async () => {
+  if (credentialsValidated) return;
+
+  const client = twilio(twilioAccountSid, twilioAuthToken);
+
+  try {
+    const key = await client.keys(twilioApiKey).fetch();
+
+    // Defensive check: fetched key SID should match configured key SID.
+    if (!key?.sid || key.sid !== twilioApiKey) {
+      throw new Error("Configured TWILIO_API_KEY could not be validated for this account");
+    }
+
+    credentialsValidated = true;
+  } catch (error) {
+    const code = error?.code ? ` (Twilio code ${error.code})` : "";
+    throw new Error(
+      `Twilio credential mismatch${code}. Ensure TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_API_KEY / TWILIO_API_SECRET are from the same Twilio account.`,
+    );
+  }
+};
+
 /**
  * Generate a Twilio Video token for a user
  * @param {string} identity - User identifier (userId)
@@ -50,6 +74,8 @@ export const generateVideoToken = async (req, res) => {
         }
       });
     }
+
+    await validateTwilioCredentialsConsistency();
 
     console.log("Creating Twilio access token...");
     const AccessToken = twilio.jwt.AccessToken;
