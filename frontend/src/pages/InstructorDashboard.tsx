@@ -108,7 +108,10 @@ export default function InstructorDashboard() {
             <section className="mb-6 dei-card p-5">
                 <div className="mb-4 flex items-center justify-between">
                     <h3 className="font-semibold text-foreground">Enrollment by Course</h3>
-                    <Button onClick={() => navigate("/instructor/course-builder")}>Create Course</Button>
+                    <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => navigate("/instructor/quiz-builder")}>Quiz Builder</Button>
+                        <Button onClick={() => navigate("/instructor/course-builder")}>Create Course</Button>
+                    </div>
                 </div>
 
                 {loading ? (

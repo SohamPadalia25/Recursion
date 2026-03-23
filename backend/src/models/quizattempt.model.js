@@ -8,13 +8,74 @@ const answerSchema = new mongoose.Schema(
     },
     selectedIndex: {
       type: Number,
-      required: true,
       min: 0,
-      max: 3,
+      default: null,
+    },
+    answerText: {
+      type: String,
+      trim: true,
+      default: "",
     },
     isCorrect: {
       type: Boolean,
       required: true,
+    },
+  },
+  { _id: false }
+);
+
+const assignedQuestionSchema = new mongoose.Schema(
+  {
+    questionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["mcq", "brief", "descriptive"],
+      required: true,
+    },
+    text: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    options: {
+      type: [String],
+      default: [],
+    },
+    marks: {
+      type: Number,
+      min: 1,
+      default: 1,
+    },
+  },
+  { _id: false }
+);
+
+const activityLogSchema = new mongoose.Schema(
+  {
+    eventType: {
+      type: String,
+      enum: [
+        "copy",
+        "paste",
+        "selection",
+        "click",
+        "fullscreen_exit",
+        "visibility_hidden",
+        "context_menu",
+      ],
+      required: true,
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+    meta: {
+      type: String,
+      trim: true,
+      default: "",
     },
   },
   { _id: false }
@@ -35,12 +96,21 @@ const quizAttemptSchema = new mongoose.Schema(
     lesson: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Lesson",
-      required: true,
+      default: null,
     },
     course: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Course",
-      required: true,
+      default: null,
+    },
+    quizBank: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "QuizBank",
+      default: null,
+    },
+    assignedQuestions: {
+      type: [assignedQuestionSchema],
+      default: [],
     },
     answers: [answerSchema],
     score: {
@@ -67,6 +137,27 @@ const quizAttemptSchema = new mongoose.Schema(
       type: Number,
       default: 0, // seconds taken to complete
     },
+    warningCount: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    activityLogs: {
+      type: [activityLogSchema],
+      default: [],
+    },
+    isTerminatedForCheating: {
+      type: Boolean,
+      default: false,
+    },
+    startedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    submittedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -76,4 +167,4 @@ const quizAttemptSchema = new mongoose.Schema(
 // fast lookup: all attempts by a student for a quiz
 quizAttemptSchema.index({ student: 1, quiz: 1 });
 
-export const QuizAttempt = mongoose.model("QuizAttempt", quizAttemptSchema);
+export const QuizAttempt = mongoose.models.QuizAttempt || mongoose.model("QuizAttempt", quizAttemptSchema);

@@ -12,6 +12,7 @@ import courseRoutes from "./routes/course.routes.js";
 import moduleRoutes from "./routes/module.routes.js";
 import lessonRoutes from "./routes/lesson.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
+import quizRoutes from "./routes/quiz.routes.js";
 import courseGenerationRoutes from "./routes/courseGeneration.routes.js";
 import pipelineRoutes from "./routes/pipeline.routes.js";
 import {
@@ -67,6 +68,7 @@ app.use("/api/v1/courses", courseRoutes);
 app.use("/api/v1/modules", moduleRoutes);
 app.use("/api/v1/lessons", lessonRoutes);
 app.use("/api/v1/ai", aiRoutes);
+app.use("/api/v1/quizzes", quizRoutes);
 app.use("/api/v1/pipeline", pipelineRoutes);
 app.use("/api/v1/courses", courseGenerationRoutes);
 app.use("/api/v1/enrollments", enrollmentRouter);
