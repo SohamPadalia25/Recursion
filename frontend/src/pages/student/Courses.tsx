@@ -1,51 +1,172 @@
-import { Clock3, Star } from "lucide-react";
+import { Clock3, Flame, Info, MoreVertical, PlayCircle, Star } from "lucide-react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { AppFrame } from "@/components/platform/AppFrame";
+import { Button } from "@/components/ui/button";
+import { demoCourses } from "@/data/udemyDemoCourses";
 import { studentNav } from "../roleNav";
 
-const courses = [
-    { title: "Full-Stack Web Development", progress: 68, lessons: 42, rating: 4.8, time: "7h left" },
-    { title: "Agentic AI with MCP", progress: 34, lessons: 26, rating: 4.7, time: "11h left" },
-    { title: "Prompt Engineering Pro", progress: 86, lessons: 18, rating: 4.9, time: "3h left" },
-];
+const learningTabs = ["All courses", "My Lists", "Wishlist", "Archived", "Learning tools"];
 
 export default function StudentCoursesPage() {
+    const navigate = useNavigate();
+
     return (
         <AppFrame
             roleLabel="Student"
-            title="My Courses"
-            subtitle="Track every course with clear progress, pace, and outcomes."
+            title="My learning"
+            subtitle=""
             navItems={studentNav}
         >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {courses.map((course, i) => (
-                    <motion.article
-                        key={course.title}
-                        initial={{ opacity: 0, y: 14 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.06 }}
-                        whileHover={{ y: -4 }}
-                        className="dei-card p-5"
-                    >
-                        <h2 className="text-base font-semibold text-foreground">{course.title}</h2>
-                        <div className="mt-3 h-2 rounded-full bg-muted">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${course.progress}%` }}
-                                transition={{ duration: 0.8, delay: 0.2 + i * 0.05 }}
-                                className="h-2 rounded-full bg-primary"
-                            />
+            <section className="border-b border-border">
+                <div className="flex gap-6 overflow-x-auto pb-3">
+                    {learningTabs.map((tab, i) => (
+                        <button
+                            key={tab}
+                            className={`whitespace-nowrap pb-2 text-sm transition-colors ${
+                                i === 0
+                                    ? "border-b-2 border-foreground font-semibold text-foreground"
+                                    : "text-muted-foreground hover:text-foreground"
+                            }`}
+                            type="button"
+                        >
+                            {tab}
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            <div className="mt-6 space-y-5">
+                <motion.section
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35 }}
+                    className="rounded-2xl border border-border bg-card p-6"
+                >
+                    <div className="grid gap-5 lg:grid-cols-[1.3fr_0.8fr_1fr] lg:items-center">
+                        <div>
+                            <h2 className="text-xl font-semibold text-foreground">Start a weekly streak</h2>
+                            <p className="mt-1 text-sm text-muted-foreground">Let&apos;s chip away at your learning goals.</p>
                         </div>
-                        <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
-                            <span>{course.progress}% complete</span>
-                            <span>{course.lessons} lessons</span>
+
+                        <div className="flex items-center gap-3 rounded-xl border border-border p-4">
+                            <Flame className="h-6 w-6 text-muted-foreground" />
+                            <div>
+                                <p className="text-2xl font-semibold leading-none text-foreground">
+                                    0 <span className="text-base font-medium text-muted-foreground">weeks</span>
+                                </p>
+                                <p className="mt-1 text-sm text-muted-foreground">Current streak</p>
+                            </div>
                         </div>
-                        <div className="mt-4 flex items-center justify-between text-sm">
-                            <span className="flex items-center gap-1 text-dei-amber"><Star className="h-4 w-4 fill-current" /> {course.rating}</span>
-                            <span className="flex items-center gap-1 text-muted-foreground"><Clock3 className="h-4 w-4" /> {course.time}</span>
+
+                        <div className="flex items-center gap-4 rounded-xl border border-border p-4">
+                            <div className="relative h-14 w-14 rounded-full border-[7px] border-muted">
+                                <div className="absolute inset-[6px] rounded-full border-4 border-emerald-500" />
+                            </div>
+                            <div className="space-y-1 text-sm">
+                                <p className="text-foreground">0/30 course min</p>
+                                <p className="text-foreground">1/1 visit</p>
+                                <p className="text-muted-foreground">Mar 23 - 30</p>
+                            </div>
+                            <Info className="ml-auto h-4 w-4 text-muted-foreground" />
                         </div>
-                    </motion.article>
-                ))}
+                    </div>
+                </motion.section>
+
+                <motion.section
+                    initial={{ opacity: 0, y: 14 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, delay: 0.06 }}
+                    className="rounded-2xl border border-border bg-card p-6"
+                >
+                    <div className="flex items-start gap-4">
+                        <div className="rounded-full border border-border p-2 text-muted-foreground">
+                            <Clock3 className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-semibold text-foreground">Schedule learning time</h3>
+                            <p className="mt-1 max-w-4xl text-sm text-muted-foreground">
+                                Learning a little each day adds up. Research shows that students who make learning a habit are more
+                                likely to reach their goals. Set time aside to learn and get reminders using your learning scheduler.
+                            </p>
+                            <div className="mt-4 flex flex-wrap items-center gap-3">
+                                <button
+                                    type="button"
+                                    className="rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                                >
+                                    Get started
+                                </button>
+                                <button type="button" className="text-sm font-medium text-foreground/80 hover:text-foreground">
+                                    Dismiss
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </motion.section>
+
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                    {demoCourses.map((course, i) => (
+                        <motion.article
+                            key={course.id}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.06 }}
+                            className="min-w-0"
+                        >
+                            <div className="overflow-hidden rounded-lg border border-border bg-card">
+                                <div className="relative aspect-[16/9] w-full border-b border-border bg-muted/40">
+                                    <img src={course.image} alt={course.title} className="h-full w-full object-cover" />
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate(`/student/course/${course.id}`)}
+                                        className="absolute inset-0 bg-black/0 transition-colors hover:bg-black/10"
+                                        aria-label="Open course details"
+                                    />
+                                    <span className="absolute left-2 bottom-2 rounded-md bg-card/85 px-2 py-1 text-[11px] text-foreground">
+                                        {course.rating} ★ · {course.totalHours}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="absolute right-2 top-2 rounded-md bg-card/80 p-1.5 text-muted-foreground hover:text-foreground"
+                                    >
+                                        <MoreVertical className="h-4 w-4" />
+                                    </button>
+                                </div>
+                                <div className="p-4">
+                                    <button type="button" onClick={() => navigate(`/student/course/${course.id}`)} className="text-left">
+                                        <h4 className="line-clamp-2 text-base font-semibold text-foreground hover:underline">{course.title}</h4>
+                                    </button>
+                                    <p className="mt-1 text-sm text-muted-foreground">{course.instructor}</p>
+                                    <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                                        <Star className="h-3.5 w-3.5 fill-dei-amber text-dei-amber" />
+                                        <span>{course.rating}</span>
+                                        <span>({course.reviews})</span>
+                                    </div>
+                                    <div className="mt-2 text-sm font-semibold text-foreground">{course.price}</div>
+                                    <div className="mt-3 flex gap-2 border-t border-border pt-3">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            className="h-8 rounded-lg px-3 text-xs"
+                                            onClick={() => navigate(`/student/course/${course.id}/learn/0/0`)}
+                                        >
+                                            <PlayCircle className="mr-1 h-3.5 w-3.5" /> Start course
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            className="h-8 rounded-lg px-3 text-xs"
+                                            onClick={() => navigate(`/student/course/${course.id}`)}
+                                        >
+                                            View
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.article>
+                    ))}
+                </div>
             </div>
         </AppFrame>
     );
