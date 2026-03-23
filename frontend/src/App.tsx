@@ -1,4 +1,4 @@
-﻿import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -22,6 +22,7 @@ import StudentCoursePlayerPage from "./pages/student/CoursePlayer";
 import StudentRoadmapPage from "./pages/student/Roadmap";
 import StudentNeo4jCoursePage from "./pages/student/Neo4jCourse";
 import StudentNeo4jInsightsPage from "./pages/student/Neo4jInsights";
+import StudentMediaPipelinePage from "./pages/student/MediaPipeline";
 import StudentCertificateDetailPage from "./pages/student/CertificateDetail";
 import VerifyCertificatePage from "./pages/VerifyCertificate";
 import StudentMyNotesPage from "./pages/student/MyNotes";
@@ -185,6 +186,14 @@ const App = () => (
               }
             />
 
+            <Route
+              path="/student/media-pipeline"
+              element={
+                <ProtectedRoute allowedRoles={["student"]}>
+                  <StudentMediaPipelinePage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/live-session"
               element={

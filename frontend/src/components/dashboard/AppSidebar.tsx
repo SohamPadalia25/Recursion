@@ -14,6 +14,7 @@ import {
   Trophy,
   LogOut,
   FileText,
+  AudioLines,
 } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 
@@ -28,6 +29,7 @@ const navItems = [
   { icon: Network, label: "Roadmap", to: "/student/roadmap" },
   { icon: Network, label: "Neo4j Insights", to: "/student/neo4j-insights" },
   { icon: Sparkles, label: "AI Tools", to: "/student/tools" },
+  { icon: AudioLines, label: "Media Pipeline", to: "/student/media-pipeline" },
 ];
 
 export function AppSidebar() {

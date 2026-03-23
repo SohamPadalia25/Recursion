@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import path from "node:path";
 import graphRoutes from "./routes/graph.routes.js";
 import videoCallRoutes from "./routes/videoCall.routes.js";
 import notesRoutes from "./routes/notes.routes.js";
@@ -12,6 +13,7 @@ import moduleRoutes from "./routes/module.routes.js";
 import lessonRoutes from "./routes/lesson.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
 import courseGenerationRoutes from "./routes/courseGeneration.routes.js";
+import pipelineRoutes from "./routes/pipeline.routes.js";
 import {
   enrollmentRouter,
   progressRouter,
@@ -51,6 +53,7 @@ app.use(cors({
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
+app.use("/pipeline-outputs", express.static(path.join(process.cwd(), "pipeline_outputs")));
 app.use(cookieParser());
 
 app.use("/api", graphRoutes);
@@ -63,6 +66,7 @@ app.use("/api/v1/courses", courseRoutes);
 app.use("/api/v1/modules", moduleRoutes);
 app.use("/api/v1/lessons", lessonRoutes);
 app.use("/api/v1/ai", aiRoutes);
+app.use("/api/v1/pipeline", pipelineRoutes);
 app.use("/api/v1/courses", courseGenerationRoutes);
 app.use("/api/v1/enrollments", enrollmentRouter);
 app.use("/api/v1/progress", progressRouter);
