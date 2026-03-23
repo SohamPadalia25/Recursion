@@ -15,6 +15,8 @@ export type Course = {
     averageRating?: number;
     totalReviews?: number;
     totalDuration?: number;
+    moduleCount?: number;
+    lessonCount?: number;
     instructor?: {
         _id?: string;
         fullname?: string;

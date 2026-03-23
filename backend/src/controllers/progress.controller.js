@@ -6,9 +6,10 @@ import { Lesson } from '../models/lesson.model.js';
 import { Enrollment } from '../models/enrollment.model.js';
 
 const COMPLETION_THRESHOLD = 0.9;
+const UNKNOWN_DURATION_REQUIRED_SECONDS = 10;
 
 const getRequiredWatchSeconds = (lessonDuration = 0) => {
-    if (!lessonDuration || lessonDuration <= 0) return 0;
+    if (!lessonDuration || lessonDuration <= 0) return UNKNOWN_DURATION_REQUIRED_SECONDS;
     return Math.ceil(lessonDuration * COMPLETION_THRESHOLD);
 };
 
@@ -102,9 +103,7 @@ const updateWatchTime = asyncHandler(async (req, res) => {
     const effectiveWatch = Math.max(previousWatch, clampedWatch);
 
     const requiredWatchSeconds = getRequiredWatchSeconds(lesson.duration || 0);
-    const shouldComplete = requiredWatchSeconds === 0
-        ? false
-        : effectiveWatch >= requiredWatchSeconds;
+    const shouldComplete = effectiveWatch >= requiredWatchSeconds;
 
     const becameCompleted = !existing?.isCompleted && shouldComplete;
 
@@ -169,19 +168,24 @@ const getCourseProgress = asyncHandler(async (req, res) => {
     }));
 
     const watchedSeconds = lessonsWithStatus.reduce((sum, lesson) => {
-        const lessonDuration = Number(lesson.duration || 0);
         const watched = Number(lesson.progress?.watchedDuration || 0);
-
-        if (lessonDuration > 0) {
-            return sum + Math.min(watched, lessonDuration);
-        }
-
         return sum + watched;
     }, 0);
 
     const totalLessonDurationSeconds = lessonsWithStatus.reduce((sum, lesson) => sum + Number(lesson.duration || 0), 0);
-    const watchProgressPercentage = totalLessonDurationSeconds > 0
-        ? Math.min(100, Math.round((watchedSeconds / totalLessonDurationSeconds) * 100))
+    const totalRequiredWatchSeconds = lessonsWithStatus.reduce((sum, lesson) => {
+        const required = getRequiredWatchSeconds(Number(lesson.duration || 0));
+        return sum + required;
+    }, 0);
+
+    const boundedWatchedAgainstRequired = lessonsWithStatus.reduce((sum, lesson) => {
+        const required = getRequiredWatchSeconds(Number(lesson.duration || 0));
+        const watched = Number(lesson.progress?.watchedDuration || 0);
+        return sum + Math.min(watched, required);
+    }, 0);
+
+    const watchProgressPercentage = totalRequiredWatchSeconds > 0
+        ? Math.min(100, Math.round((boundedWatchedAgainstRequired / totalRequiredWatchSeconds) * 100))
         : 0;
 
     return res.status(200).json(
@@ -192,6 +196,7 @@ const getCourseProgress = asyncHandler(async (req, res) => {
             totalLessons: allLessons.length,
             watchedSeconds,
             totalLessonDurationSeconds,
+            totalRequiredWatchSeconds,
             watchProgressPercentage,
             lessons: lessonsWithStatus,
             enrollment,
