@@ -386,12 +386,9 @@ export function CodeEditor({
                   ))}
                   <div ref={consoleEndRef} />
                 </div>
-              ) : (
-                <div className="p-4 text-xs text-muted-foreground text-center py-8">
-                  Console output will appear here...
-                </div>
               )}
         </div>
+      </div>
 
       {/* Status Bar */}
       <div className="flex items-center justify-between bg-muted px-4 py-2 border-t border-border text-xs text-muted-foreground flex-shrink-0">
