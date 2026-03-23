@@ -134,17 +134,28 @@ const StudentInstructorVideoCall = () => {
 
   const participantConnected = (participant: any) => {
     setRemoteParticipantName(participant.identity || "Participant");
+    clearMediaContainer(remoteVideoRef.current);
 
     // Attach tracks that are already subscribed (isSubscribed = true)
     // and listen for tracks that subscribe in the future
     participant.tracks.forEach((publication: any) => {
-      if (publication.isSubscribed && publication.track) {
+      if (publication.track) {
         attachTrack(publication.track, remoteVideoRef.current);
       }
     });
 
     participant.on("trackSubscribed", (track: any) => {
       attachTrack(track, remoteVideoRef.current);
+    });
+
+    participant.on("trackPublished", (publication: any) => {
+      if (publication.track) {
+        attachTrack(publication.track, remoteVideoRef.current);
+      }
+
+      publication.on?.("subscribed", (track: any) => {
+        attachTrack(track, remoteVideoRef.current);
+      });
     });
 
     participant.on("trackUnsubscribed", (track: any) => {

@@ -160,25 +160,41 @@ const StudentJoinSession = () => {
     return currentUser;
   };
 
+  const attachRemoteTrack = (track: any) => {
+    if (!remoteVideoRef.current || track?.kind !== "video") return;
+    const el = track.attach();
+    el.className = "w-full h-full object-cover rounded-2xl";
+    remoteVideoRef.current.appendChild(el);
+  };
+
   const attachRemoteParticipant = (participant: any) => {
-    setRemoteParticipants((prev) => [...prev, participant]);
+    setRemoteParticipants((prev) => {
+      if (prev.some((p) => p.sid === participant.sid)) return prev;
+      return [...prev, participant];
+    });
+
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.innerHTML = "";
+    }
 
     participant.tracks.forEach((publication: any) => {
-      if (publication.isSubscribed && publication.track) {
-        if (publication.kind === "video" && remoteVideoRef.current) {
-          const el = publication.track.attach();
-          el.className = "w-full h-full object-cover rounded-2xl";
-          remoteVideoRef.current.appendChild(el);
-        }
+      if (publication.track) {
+        attachRemoteTrack(publication.track);
       }
     });
 
     participant.on("trackSubscribed", (track: any) => {
-      if (track.kind === "video" && remoteVideoRef.current) {
-        const el = track.attach();
-        el.className = "w-full h-full object-cover rounded-2xl";
-        remoteVideoRef.current.appendChild(el);
+      attachRemoteTrack(track);
+    });
+
+    participant.on("trackPublished", (publication: any) => {
+      if (publication.track) {
+        attachRemoteTrack(publication.track);
       }
+
+      publication.on?.("subscribed", (track: any) => {
+        attachRemoteTrack(track);
+      });
     });
 
     participant.on("trackUnsubscribed", (track: any) => {
@@ -188,7 +204,13 @@ const StudentJoinSession = () => {
 
   const participantDisconnected = (participant: any) => {
     console.log("Participant disconnected:", participant.sid);
-    setRemoteParticipants((prev) => prev.filter((p) => p.sid !== participant.sid));
+    setRemoteParticipants((prev) => {
+      const next = prev.filter((p) => p.sid !== participant.sid);
+      if (next.length === 0 && remoteVideoRef.current) {
+        remoteVideoRef.current.innerHTML = "";
+      }
+      return next;
+    });
   };
 
   // ─── Join Session ─────────────────────────────────────────────────────────────
