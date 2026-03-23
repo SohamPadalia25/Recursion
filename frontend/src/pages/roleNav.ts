@@ -24,3 +24,7 @@ export const adminNav = [
     { label: "Monetization", to: "/admin/monetization" },
     { label: "Moderation", to: "/admin/moderation" },
 ];
+
+export default function RoleNavPage() {
+    return null;
+}

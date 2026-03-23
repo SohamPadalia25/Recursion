@@ -20,14 +20,8 @@ const uploadOnCloudinary=async (localFilePath)=>{
         
         console.log("File is uploaded successfully on cloudinary ",response.url)
 
-        // Deleting the temp file should never fail the request.
-        // On Windows, `unlinkSync` can throw (EPERM) if the file is still locked.
-        try {
-            fs.unlinkSync(localFilePath)
-        } catch (unlinkErr) {
-            console.error("Failed to delete temp file:", unlinkErr?.message || unlinkErr)
-        }
-
+        fs.unlinkSync(localFilePath)
+        
         return response
 
     } catch (error) {
