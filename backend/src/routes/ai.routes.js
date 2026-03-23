@@ -15,6 +15,8 @@ import {
   replanStudy,
   getTrendingJobs,
   findJobs,
+   getLessonTranscript,
+  analyzeNotes,
 } from "../controllers/ai.controller.js";
 
 const router = Router();
@@ -61,5 +63,12 @@ router.post("/study-plan/replan", replanStudy);
 router.get("/jobs/trending", getTrendingJobs);
 // POST /api/v1/ai/jobs/finder
 router.post("/jobs/finder", findJobs);
+
+// GET /api/v1/ai/transcript/:lessonId
+router.get("/transcript/:lessonId", getLessonTranscript);
+
+// ── Notes AI ─────────────────────────────────
+// POST /api/v1/ai/notes/analyze
+router.post("/notes/analyze", analyzeNotes);
 
 export default router;

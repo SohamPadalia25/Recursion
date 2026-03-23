@@ -256,9 +256,9 @@ const updateCourse = asyncHandler(async (req, res) => {
     if (language) course.language = language;
     if (tags) course.tags = tags.split(",").map(t => t.trim());
 
-    // instructor can submit for review
+    // publishing is controlled by the dedicated submit endpoint after validation
     if (status === "published" && !course.isApproved) {
-        throw new ApiError(403, "Course must be approved by admin before publishing");
+        throw new ApiError(403, "Use the publish endpoint after backend validation");
     }
     if (status) course.status = status;
 
@@ -329,7 +329,68 @@ const getMyCoursesAsInstructor = asyncHandler(async (req, res) => {
     );
 });
 
-// ─── SUBMIT FOR ADMIN APPROVAL ──────────────────────────────
+const validateCourseForPublish = async (course) => {
+    const title = String(course.title || "").trim();
+    const description = String(course.description || "").trim();
+    const category = String(course.category || "").trim();
+
+    if (!title) throw new ApiError(400, "Course title is required before publishing");
+    if (!description) throw new ApiError(400, "Course description is required before publishing");
+    if (!category) throw new ApiError(400, "Course category is required before publishing");
+
+    const modules = await Module.find({ course: course._id }).sort({ order: 1 }).lean();
+    if (!modules.length) {
+        throw new ApiError(400, "Add at least one module before publishing");
+    }
+
+    const lessons = await Lesson.find({ course: course._id })
+        .select("title videoUrl module order")
+        .sort({ order: 1 })
+        .lean();
+
+    const lessonsByModule = new Map();
+    for (const lesson of lessons) {
+        const moduleId = String(lesson.module);
+        if (!lessonsByModule.has(moduleId)) lessonsByModule.set(moduleId, []);
+        lessonsByModule.get(moduleId).push(lesson);
+    }
+
+    for (let moduleIndex = 0; moduleIndex < modules.length; moduleIndex += 1) {
+        const module = modules[moduleIndex];
+        const moduleTitle = String(module.title || "").trim();
+
+        if (!moduleTitle) {
+            throw new ApiError(400, `Module ${moduleIndex + 1} title is required before publishing`);
+        }
+
+        const moduleLessons = lessonsByModule.get(String(module._id)) || [];
+        if (!moduleLessons.length) {
+            throw new ApiError(400, `Module ${moduleIndex + 1} must have at least one lesson before publishing`);
+        }
+
+        for (let lessonIndex = 0; lessonIndex < moduleLessons.length; lessonIndex += 1) {
+            const lesson = moduleLessons[lessonIndex];
+            const lessonTitle = String(lesson.title || "").trim();
+            const lessonVideoUrl = String(lesson.videoUrl || "").trim();
+
+            if (!lessonTitle) {
+                throw new ApiError(
+                    400,
+                    `Lesson ${lessonIndex + 1} title is required in module ${moduleIndex + 1} before publishing`
+                );
+            }
+
+            if (!lessonVideoUrl) {
+                throw new ApiError(
+                    400,
+                    `Lesson ${lessonIndex + 1} video URL is required in module ${moduleIndex + 1} before publishing`
+                );
+            }
+        }
+    }
+};
+
+// ─── PUBLISH COURSE AFTER BACKEND VALIDATION ───────────────
 // PATCH /api/v1/courses/:courseId/submit
 const submitForApproval = asyncHandler(async (req, res) => {
     const { courseId } = req.params;
@@ -341,17 +402,40 @@ const submitForApproval = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Not authorized");
     }
 
-    // basic validation before submission
-    const lessonCount = await Lesson.countDocuments({ course: courseId });
-    if (lessonCount === 0) {
-        throw new ApiError(400, "Add at least one lesson before submitting");
+    if (course.status === "published" && course.isApproved) {
+        return res.status(200).json(
+            new ApiResponse(200, course, "Course is already published")
+        );
     }
 
-    course.status = "draft"; // stays draft until admin approves
+    await validateCourseForPublish(course);
+
+    course.status = "published";
+    course.isApproved = true;
     await course.save();
 
     return res.status(200).json(
-        new ApiResponse(200, course, "Course submitted for approval")
+        new ApiResponse(200, course, "Course published successfully")
+    );
+});
+
+// ─── UPLOAD DRAFT LESSON VIDEO ─────────────────────────────
+// POST /api/v1/courses/uploads/lesson-video
+const uploadDraftLessonVideo = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        throw new ApiError(400, "Video file is required");
+    }
+
+    const uploaded = await uploadOnCloudinary(req.file.path);
+    if (!uploaded?.url) {
+        throw new ApiError(500, "Video upload failed");
+    }
+
+    return res.status(200).json(
+        new ApiResponse(200, {
+            videoUrl: uploaded.url,
+            duration: Number(uploaded.duration || 0),
+        }, "Video uploaded successfully")
     );
 });
 
@@ -363,4 +447,5 @@ export {
     deleteCourse,
     getMyCoursesAsInstructor,
     submitForApproval,
+    uploadDraftLessonVideo,
 };

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AppFrame } from "@/components/platform/AppFrame";
 import { instructorNav } from "../roleNav";
 import { Button } from "@/components/ui/button";
-import { apiRequest } from "@/lib/api-client";
+import { API_BASE_URL, apiRequest } from "@/lib/api-client";
 import { getInstructorCourses, type Course } from "@/lib/course-api";
 
 type LessonDraft = {
@@ -79,6 +79,7 @@ export default function InstructorCourseBuilderPage() {
     const [dragOverModuleIndex, setDragOverModuleIndex] = useState<number | null>(null);
     const [draggedLesson, setDraggedLesson] = useState<{ moduleIndex: number; lessonIndex: number } | null>(null);
     const [dragOverLesson, setDragOverLesson] = useState<{ moduleIndex: number; lessonIndex: number } | null>(null);
+    const [uploadingLessonKey, setUploadingLessonKey] = useState<string | null>(null);
     const structureError = validateStructure(modules);
 
     const loadCourses = async () => {
@@ -256,15 +257,53 @@ export default function InstructorCourseBuilderPage() {
         setDragOverLesson(null);
     };
 
-    const submitForApproval = async (courseId: string) => {
+    const publishCourse = async (courseId: string) => {
         setError("");
         try {
-            await apiRequest(`/api/v1/courses/${courseId}/submit`, {
+            await apiRequest(`/api/v1/courses/${courseId}/publish`, {
                 method: "PATCH",
             });
             await loadCourses();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to submit for approval");
+            setError(err instanceof Error ? err.message : "Failed to publish course");
+        }
+    };
+
+    const uploadDraftLessonVideo = async (moduleIndex: number, lessonIndex: number, file: File) => {
+        const lessonKey = `${moduleIndex}-${lessonIndex}`;
+        setError("");
+        setUploadingLessonKey(lessonKey);
+
+        try {
+            const token = localStorage.getItem("dei-auth-access-token") || "";
+            const normalizedBase = API_BASE_URL.replace(/\/api\/v1\/?$/i, "");
+            const formData = new FormData();
+            formData.append("video", file);
+
+            const res = await fetch(`${normalizedBase}/api/v1/courses/uploads/lesson-video`, {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: formData,
+            });
+
+            const json = await res.json();
+            if (!res.ok || !json?.success) {
+                throw new Error(json?.message || "Video upload failed");
+            }
+
+            const uploadedUrl = String(json?.data?.videoUrl || "").trim();
+            if (!uploadedUrl) {
+                throw new Error("Uploaded video URL missing from response");
+            }
+
+            updateLessonField(moduleIndex, lessonIndex, "videoUrl", uploadedUrl);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to upload video");
+        } finally {
+            setUploadingLessonKey(null);
         }
     };
 
@@ -272,7 +311,7 @@ export default function InstructorCourseBuilderPage() {
         <AppFrame
             roleLabel="Instructor"
             title="Course Builder"
-            subtitle="Create and submit courses directly to backend workflows."
+            subtitle="Create and publish courses with backend validation."
             navItems={instructorNav}
         >
             {error ? (
@@ -424,12 +463,43 @@ export default function InstructorCourseBuilderPage() {
                                                     placeholder="Lesson title"
                                                     className="h-10 rounded-lg border border-border bg-background px-3 text-sm"
                                                 />
-                                                <input
-                                                    value={lesson.videoUrl}
-                                                    onChange={(e) => updateLessonField(moduleIndex, lessonIndex, "videoUrl", e.target.value)}
-                                                    placeholder="Lesson video URL"
-                                                    className="h-10 rounded-lg border border-border bg-background px-3 text-sm"
-                                                />
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        value={lesson.videoUrl}
+                                                        onChange={(e) => updateLessonField(moduleIndex, lessonIndex, "videoUrl", e.target.value)}
+                                                        placeholder="Lesson video URL"
+                                                        className="h-10 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
+                                                    />
+                                                    <input
+                                                        id={`lesson-video-upload-${moduleIndex}-${lessonIndex}`}
+                                                        type="file"
+                                                        accept="video/*"
+                                                        className="hidden"
+                                                        onChange={(e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (file) {
+                                                                void uploadDraftLessonVideo(moduleIndex, lessonIndex, file);
+                                                            }
+                                                            e.currentTarget.value = "";
+                                                        }}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="secondary"
+                                                        onClick={() => {
+                                                            const input = document.getElementById(
+                                                                `lesson-video-upload-${moduleIndex}-${lessonIndex}`,
+                                                            ) as HTMLInputElement | null;
+                                                            input?.click();
+                                                        }}
+                                                        disabled={uploadingLessonKey === `${moduleIndex}-${lessonIndex}`}
+                                                    >
+                                                        {uploadingLessonKey === `${moduleIndex}-${lessonIndex}`
+                                                            ? "Uploading..."
+                                                            : "Upload Video"}
+                                                    </Button>
+                                                </div>
                                                 <textarea
                                                     value={lesson.description}
                                                     onChange={(e) => updateLessonField(moduleIndex, lessonIndex, "description", e.target.value)}
@@ -479,7 +549,7 @@ export default function InstructorCourseBuilderPage() {
                     <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
                         <li>Create course metadata.</li>
                         <li>Add modules and lessons.</li>
-                        <li>Submit for admin approval.</li>
+                        <li>Publish after backend validation.</li>
                     </ol>
                 </section>
             </div>
@@ -500,8 +570,13 @@ export default function InstructorCourseBuilderPage() {
                                     </p>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button size="sm" variant="outline" onClick={() => submitForApproval(course._id)}>
-                                        Submit
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => publishCourse(course._id)}
+                                        disabled={course.status === "published"}
+                                    >
+                                        {course.status === "published" ? "Published" : "Publish"}
                                     </Button>
                                 </div>
                             </div>

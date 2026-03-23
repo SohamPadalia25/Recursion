@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AudioMind — AI Learning Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c12;
+    --surface: #0f1520;
+    --surface2: #141d2e;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --warn: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background grid ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Glow orbs ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+  .orb1 { width: 500px; height: 500px; background: #00d4ff22; top: -150px; left: -100px; }
+  .orb2 { width: 400px; height: 400px; background: #7c3aed22; bottom: -100px; right: -50px; }
+
+  .container {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 56px;
+    animation: fadeDown 0.8s ease;
+  }
+  .logo-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .logo-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 0 30px rgba(0,212,255,0.3);
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #fff 30%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-weight: 300;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Pipeline viz ── */
+  .pipeline-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 48px;
+    animation: fadeUp 0.8s ease 0.2s both;
+  }
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    max-width: 160px;
+  }
+  .step-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.3s;
+  }
+  .step.active .step-icon {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.1);
+    box-shadow: 0 0 20px rgba(0,212,255,0.2);
+  }
+  .step.done .step-icon {
+    border-color: var(--accent3);
+    background: rgba(16,185,129,0.1);
+  }
+  .step-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: center;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .step-arrow {
+    color: var(--border);
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    padding: 0 4px;
+    margin-bottom: 22px;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 24px;
+    animation: fadeUp 0.8s ease 0.3s both;
+  }
+  .card-title {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+  }
+
+  /* ── Tabs ── */
+  .input-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 24px;
+    border: 1px solid var(--border);
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    border-radius: 9px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .tab.active {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  /* ── Form ── */
+  label {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  input[type="text"], textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    resize: vertical;
+  }
+  input[type="text"]:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,212,255,0.1);
+  }
+  input[type="text"]::placeholder, textarea::placeholder { color: var(--muted); }
+
+  /* ── File drop ── */
+  .file-drop {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    padding: 40px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: var(--bg);
+  }
+  .file-drop:hover, .file-drop.dragover {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.04);
+  }
+  .file-drop-icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .file-drop-text { color: var(--muted); font-size: 0.9rem; }
+  .file-drop-text strong { color: var(--accent); }
+  .file-selected { color: var(--accent3); font-size: 0.85rem; margin-top: 10px; }
+  #pdf-input { display: none; }
+
+  /* ── Controls row ── */
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .control-group { display: flex; flex-direction: column; gap: 8px; }
+  select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+
+  /* ── Duration slider ── */
+  .duration-display {
+    font-family: var(--mono);
+    font-size: 1.8rem;
+    color: var(--accent);
+    margin: 8px 0 4px;
+  }
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 4px;
+    border-radius: 4px;
+    background: var(--border);
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0,212,255,0.5);
+  }
+
+  /* ── Generate button ── */
+  .btn-generate {
+    width: 100%;
+    padding: 18px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+    font-family: var(--mono);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 28px;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-generate::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  }
+  .btn-generate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,212,255,0.3);
+  }
+  .btn-generate:active { transform: translateY(0); }
+  .btn-generate:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ── Loading state ── */
+  .loading-card {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 40px 32px;
+    text-align: center;
+    animation: fadeUp 0.4s ease;
+    box-shadow: 0 0 40px rgba(0,212,255,0.1);
+  }
+  .loading-spinner {
+    width: 56px;
+    height: 56px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 20px;
+  }
+  .loading-stage {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .loading-msg { color: var(--muted); font-size: 0.9rem; }
+  .loading-dots::after {
+    content: '';
+    animation: dots 1.5s infinite;
+  }
+
+  /* ── Progress bar ── */
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 3px;
+    margin-top: 24px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 10px rgba(0,212,255,0.5);
+  }
+
+  /* ── Result card ── */
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--accent3);
+    border-radius: 20px;
+    padding: 32px;
+    animation: fadeUp 0.5s ease;
+    box-shadow: 0 0 40px rgba(16,185,129,0.08);
+  }
+  .result-title {
+    font-family: var(--mono);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .result-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+  .badge.green { border-color: var(--accent3); color: var(--accent3); background: rgba(16,185,129,0.1); }
+  .badge.blue { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.1); }
+
+  /* ── Concepts ── */
+  .concepts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .concept-tag {
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.4);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 0.82rem;
+    color: #a78bfa;
+  }
+
+  /* ── Audio player ── */
+  .audio-section {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .audio-section-title {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+  }
+  audio {
+    width: 100%;
+    border-radius: 8px;
+    accent-color: var(--accent);
+  }
+  .audio-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .btn-secondary {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.05); }
+  .btn-secondary.primary { border-color: var(--accent3); color: var(--accent3); }
+  .btn-secondary.primary:hover { background: rgba(16,185,129,0.1); }
+
+  /* ── Script section ── */
+  .script-section {
+    margin-top: 20px;
+  }
+  .script-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 16px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-family: var(--mono);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .script-toggle:hover { border-color: var(--muted); color: var(--text); }
+  .script-content {
+    display: none;
+    margin-top: 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    color: var(--text);
+    max-height: 320px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-family: var(--sans);
+  }
+  .script-content.visible { display: block; }
+
+  /* ── Stats ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+  /* ── Error ── */
+  .error-card {
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 16px;
+    padding: 24px;
+    animation: fadeUp 0.4s ease;
+  }
+  .error-title { color: #f87171; font-weight: 600; margin-bottom: 8px; }
+  .error-msg { color: var(--muted); font-size: 0.9rem; }
+
+  /* ── Sections breakdown ── */
+  .sections-list { margin-top: 20px; }
+  .section-item {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: flex-start;
+  }
+  .section-item:last-child { border-bottom: none; }
+  .section-type-badge {
+    flex-shrink: 0;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .type-hook { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+  .type-concept { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.3); }
+  .type-example { background: rgba(124,58,237,0.1); color: #a78bfa; border: 1px solid rgba(124,58,237,0.3); }
+  .type-summary { background: rgba(16,185,129,0.1); color: var(--accent3); border: 1px solid rgba(16,185,129,0.3); }
+  .section-title-text { font-size: 0.88rem; color: var(--text); flex: 1; }
+  .section-duration { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
+
+  /* ── New lesson btn ── */
+  .btn-new {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 16px;
+  }
+  .btn-new:hover { border-color: var(--text); color: var(--text); }
+
+  /* ── Animations ── */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes dots {
+    0% { content: ''; }
+    33% { content: '.'; }
+    66% { content: '..'; }
+    100% { content: '...'; }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── API key banner ── */
+  .api-banner {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: #fbbf24;
+    animation: fadeUp 0.5s ease 0.4s both;
+  }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 1.6rem; }
+    .controls-grid { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr; }
+    .pipeline-steps { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-line">
+      <div class="logo-icon">🎧</div>
+      <h1>AudioMind</h1>
+    </div>
+    <p class="subtitle">Transform any topic or PDF into a personalized audio lesson using AI</p>
+  </div>
+
+  <!-- Pipeline Steps -->
+  <div class="pipeline-steps" id="pipeline-steps">
+    <div class="step" id="step-input">
+      <div class="step-icon">📥</div>
+      <div class="step-label">Input</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step" id="step-llm">
+      <div class="step-icon">🧠</div>
+      <div class="step-label">Groq LLM</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step" id="step-script">
+      <div class="step-icon">📝</div>
+      <div class="step-label">Script</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step" id="step-tts">
+      <div class="step-icon">🔊</div>
+      <div class="step-label">TTS</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step" id="step-audio">
+      <div class="step-icon">🎵</div>
+      <div class="step-label">Audio</div>
+    </div>
+  </div>
+
+  <!-- API Key Banner -->
+  <div class="api-banner">
+    <span>⚡</span>
+    <span>Powered by <strong>Groq (free)</strong> + <strong>gTTS (free)</strong> — get your API key at <a href="https://console.groq.com/keys" target="_blank" style="color:#f59e0b">console.groq.com/keys</a></span>
+  </div>
+
+  <!-- Main Form Card -->
+  <div class="card" id="form-card">
+    <div class="card-title">// Configure Your Lesson</div>
+
+    <!-- Input Tabs -->
+    <div class="input-tabs">
+      <button class="tab active" onclick="switchTab('topic')">📝 Topic</button>
+      <button class="tab" onclick="switchTab('pdf')">📄 PDF Upload</button>
+    </div>
+
+    <!-- Topic Input -->
+    <div id="topic-panel">
+      <label for="topic-input">Topic or Question</label>
+      <input
+        type="text"
+        id="topic-input"
+        placeholder="e.g. How does CRISPR gene editing work?"
+        autocomplete="off"
+      >
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+        <span style="font-size:0.78rem;color:var(--muted);margin-right:4px">Try:</span>
+        <button class="concept-tag" style="cursor:pointer;border:none;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);border-radius:20px;padding:4px 12px;font-size:0.78rem;color:#a78bfa;cursor:pointer" onclick="setTopic('Quantum Computing basics')">Quantum Computing</button>
+        <button class="concept-tag" style="cursor:pointer;border:none;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);border-radius:20px;padding:4px 12px;font-size:0.78rem;color:#a78bfa;cursor:pointer" onclick="setTopic('How does the human immune system work')">Immune System</button>
+        <button class="concept-tag" style="cursor:pointer;border:none;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);border-radius:20px;padding:4px 12px;font-size:0.78rem;color:#a78bfa;cursor:pointer" onclick="setTopic('Python decorators and metaclasses')">Python Decorators</button>
+        <button class="concept-tag" style="cursor:pointer;border:none;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.4);border-radius:20px;padding:4px 12px;font-size:0.78rem;color:#a78bfa;cursor:pointer" onclick="setTopic('Stoic philosophy principles')">Stoic Philosophy</button>
+      </div>
+    </div>
+
+    <!-- PDF Input -->
+    <div id="pdf-panel" style="display:none">
+      <div class="file-drop" id="file-drop" onclick="document.getElementById('pdf-input').click()"
+           ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+        <div class="file-drop-icon">📄</div>
+        <div class="file-drop-text"><strong>Click to upload</strong> or drag & drop</div>
+        <div class="file-drop-text" style="font-size:0.8rem;margin-top:4px">PDF files only · Max 20 pages extracted</div>
+        <div class="file-selected" id="file-selected"></div>
+      </div>
+      <input type="file" id="pdf-input" accept=".pdf" onchange="handleFileSelect(event)">
+      <div style="margin-top:16px">
+        <label for="pdf-topic">Optional: Focus topic within PDF</label>
+        <input type="text" id="pdf-topic" placeholder="Leave blank to cover the whole document">
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-grid">
+      <div class="control-group">
+        <label>Duration</label>
+        <div class="duration-display"><span id="duration-val">5</span> min</div>
+        <input type="range" id="duration-range" min="2" max="15" value="5" oninput="updateDuration(this.value)">
+      </div>
+      <div class="control-group">
+        <label>Voice Style</label>
+        <select id="voice-style">
+          <option value="conversational">💬 Conversational</option>
+          <option value="academic">🎓 Academic</option>
+          <option value="storytelling">📖 Storytelling</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Difficulty</label>
+        <select id="difficulty">
+          <option value="beginner">🌱 Beginner</option>
+          <option value="intermediate" selected>⚡ Intermediate</option>
+          <option value="advanced">🔥 Advanced</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-generate" id="generate-btn" onclick="generateLesson()">
+      ▶ GENERATE AUDIO LESSON
+    </button>
+  </div>
+
+  <!-- Loading State -->
+  <div id="loading-card" style="display:none">
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-stage" id="loading-stage">STAGE 1: LLM ANALYSIS</div>
+      <div class="loading-msg loading-dots" id="loading-msg">Analyzing topic with Groq LLaMA 3</div>
+      <div class="progress-bar" style="margin-top:28px">
+        <div class="progress-fill" id="progress-fill" style="width:10%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error State -->
+  <div id="error-card" style="display:none">
+    <div class="error-card">
+      <div class="error-title">⚠ Pipeline Error</div>
+      <div class="error-msg" id="error-msg"></div>
+    </div>
+    <button class="btn-new" onclick="reset()">← Try Again</button>
+  </div>
+
+  <!-- Result -->
+  <div id="result-card" style="display:none">
+    <div class="result-card">
+      <div class="badge green" style="margin-bottom:12px">✓ LESSON READY</div>
+      <div class="result-title" id="result-title"></div>
+      <div class="result-meta" id="result-meta"></div>
+
+      <!-- Stats -->
+      <div class="stats-row" id="stats-row"></div>
+
+      <!-- Key Concepts -->
+      <div style="margin-bottom:20px">
+        <div style="font-size:0.78rem;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Key Concepts</div>
+        <div class="concepts" id="concepts"></div>
+      </div>
+
+      <!-- Audio Player -->
+      <div class="audio-section">
+        <div class="audio-section-title">🎵 Audio Output</div>
+        <audio id="audio-player" controls></audio>
+        <div class="audio-actions">
+          <a id="download-btn" class="btn-secondary primary" download>
+            ⬇ Download MP3
+          </a>
+          <button class="btn-secondary" onclick="copyScript()">📋 Copy Script</button>
+        </div>
+      </div>
+
+      <!-- Section Breakdown -->
+      <div style="margin-bottom:16px">
+        <div style="font-size:0.78rem;color:var(--muted);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Content Structure</div>
+        <div class="sections-list" id="sections-list"></div>
+      </div>
+
+      <!-- Script Preview -->
+      <div class="script-section">
+        <button class="script-toggle" onclick="toggleScript()">📄 View Full Script</button>
+        <pre class="script-content" id="script-content"></pre>
+      </div>
+    </div>
+    <button class="btn-new" onclick="reset()">+ Generate Another Lesson</button>
+  </div>
+
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:8000';
+  let currentTab = 'topic';
+  let selectedFile = null;
+  let currentScript = '';
+  let scriptVisible = false;
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', (i === 0 && tab === 'topic') || (i === 1 && tab === 'pdf'));
+    });
+    document.getElementById('topic-panel').style.display = tab === 'topic' ? 'block' : 'none';
+    document.getElementById('pdf-panel').style.display = tab === 'pdf' ? 'block' : 'none';
+  }
+
+  function setTopic(t) { document.getElementById('topic-input').value = t; }
+  function updateDuration(v) { document.getElementById('duration-val').textContent = v; }
+
+  function handleFileSelect(e) {
+    const file = e.target.files[0];
+    if (file) { selectedFile = file; document.getElementById('file-selected').textContent = '✓ ' + file.name; }
+  }
+  function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+  function handleDragLeave(e) { e.currentTarget.classList.remove('dragover'); }
+  function handleDrop(e) {
+    e.preventDefault(); e.currentTarget.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.name.endsWith('.pdf')) {
+      selectedFile = file;
+      document.getElementById('file-selected').textContent = '✓ ' + file.name;
+    }
+  }
+
+  function setStep(stepId) {
+    const steps = ['step-input','step-llm','step-script','step-tts','step-audio'];
+    const idx = steps.indexOf(stepId);
+    steps.forEach((s, i) => {
+      const el = document.getElementById(s);
+      el.classList.toggle('active', i === idx);
+      el.classList.toggle('done', i < idx);
+    });
+  }
+
+  const loadingStages = [
+    { stage: 'STAGE 1A: LLM ANALYSIS', msg: 'Extracting key concepts with Groq LLaMA 3', step: 'step-llm', progress: 15 },
+    { stage: 'STAGE 1B: SCRIPT GENERATION', msg: 'Building time-calibrated teaching script', step: 'step-script', progress: 40 },
+    { stage: 'STAGE 1C: TTS OPTIMIZATION', msg: 'Refining script for natural speech', step: 'step-script', progress: 60 },
+    { stage: 'STAGE 2: AUDIO SYNTHESIS', msg: 'Converting script to audio via gTTS', step: 'step-tts', progress: 80 },
+    { stage: 'FINALIZING', msg: 'Packaging your audio lesson', step: 'step-audio', progress: 95 },
+  ];
+
+  async function generateLesson() {
+    let topic = '';
+    if (currentTab === 'topic') {
+      topic = document.getElementById('topic-input').value.trim();
+      if (!topic) { alert('Please enter a topic'); return; }
+    } else {
+      if (!selectedFile) { alert('Please upload a PDF'); return; }
+      topic = document.getElementById('pdf-topic').value.trim();
+    }
+
+    const duration = parseInt(document.getElementById('duration-range').value);
+    const voiceStyle = document.getElementById('voice-style').value;
+    const difficulty = document.getElementById('difficulty').value;
+
+    // Show loading
+    document.getElementById('form-card').style.display = 'none';
+    document.getElementById('loading-card').style.display = 'block';
+    document.getElementById('result-card').style.display = 'none';
+    document.getElementById('error-card').style.display = 'none';
+
+    // Animate loading stages
+    let stageIdx = 0;
+    const stageInterval = setInterval(() => {
+      if (stageIdx < loadingStages.length) {
+        const s = loadingStages[stageIdx];
+        document.getElementById('loading-stage').textContent = s.stage;
+        document.getElementById('loading-msg').textContent = s.msg;
+        document.getElementById('progress-fill').style.width = s.progress + '%';
+        setStep(s.step);
+        stageIdx++;
+      }
+    }, 3500);
+
+    try {
+      const formData = new FormData();
+      formData.append('duration_minutes', duration);
+      formData.append('voice_style', voiceStyle);
+      formData.append('difficulty', difficulty);
+
+      if (currentTab === 'pdf' && selectedFile) {
+        formData.append('pdf_file', selectedFile);
+        if (topic) formData.append('topic', topic);
+      } else {
+        formData.append('topic', topic);
+      }
+
+      const resp = await fetch(`${API_BASE}/generate`, { method: 'POST', body: formData });
+      clearInterval(stageInterval);
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail || 'Server error');
+      }
+
+      const data = await resp.json();
+      document.getElementById('progress-fill').style.width = '100%';
+      setStep('step-audio');
+      document.getElementById('step-audio').classList.add('done');
+
+      setTimeout(() => showResult(data), 500);
+
+    } catch (err) {
+      clearInterval(stageInterval);
+      document.getElementById('loading-card').style.display = 'none';
+      document.getElementById('error-card').style.display = 'block';
+      document.getElementById('error-msg').textContent = err.message +
+        '\n\nMake sure: 1) Server is running (python backend/main.py) 2) GROQ_API_KEY is set';
+    }
+  }
+
+  function showResult(data) {
+    document.getElementById('loading-card').style.display = 'none';
+    document.getElementById('result-card').style.display = 'block';
+
+    document.getElementById('result-title').textContent = data.title;
+
+    // Meta badges
+    const meta = document.getElementById('result-meta');
+    meta.innerHTML = `
+      <span class="badge blue">⏱ ~${Math.round(data.estimated_duration_seconds/60)} min</span>
+      <span class="badge">${data.word_count} words</span>
+      <span class="badge">${data.pipeline_stages?.stage1_llm || 'LLM'}</span>
+      <span class="badge">${data.pipeline_stages?.stage2_tts || 'TTS'}</span>
+      <span class="badge green">⚡ ${data.processing_time_seconds}s</span>
+    `;
+
+    // Stats
+    document.getElementById('stats-row').innerHTML = `
+      <div class="stat"><div class="stat-value">${Math.round(data.estimated_duration_seconds/60)}</div><div class="stat-label">Minutes</div></div>
+      <div class="stat"><div class="stat-value">${data.word_count}</div><div class="stat-label">Words</div></div>
+      <div class="stat"><div class="stat-value">${data.key_concepts?.length || 0}</div><div class="stat-label">Concepts</div></div>
+    `;
+
+    // Concepts
+    document.getElementById('concepts').innerHTML = (data.key_concepts || [])
+      .map(c => `<span class="concept-tag">${c}</span>`).join('');
+
+    // Audio
+    const audioUrl = `${API_BASE}${data.audio_url}`;
+    document.getElementById('audio-player').src = audioUrl;
+    const dlBtn = document.getElementById('download-btn');
+    dlBtn.href = audioUrl;
+    dlBtn.download = data.audio_file;
+
+    // Sections
+    const typeClass = { hook:'type-hook', concept:'type-concept', example:'type-example', summary:'type-summary' };
+    document.getElementById('sections-list').innerHTML = (data.sections || []).map(s => `
+      <div class="section-item">
+        <span class="section-type-badge ${typeClass[s.section_type] || 'type-concept'}">${s.section_type}</span>
+        <span class="section-title-text">${s.title}</span>
+        <span class="section-duration">${Math.round((s.duration_seconds||0)/60)}m ${(s.duration_seconds||0)%60}s</span>
+      </div>
+    `).join('');
+
+    // Script
+    currentScript = data.optimized_script || '';
+    document.getElementById('script-content').textContent = currentScript;
+  }
+
+  function toggleScript() {
+    scriptVisible = !scriptVisible;
+    document.getElementById('script-content').classList.toggle('visible', scriptVisible);
+    document.querySelector('.script-toggle').textContent = scriptVisible ? '▲ Hide Script' : '📄 View Full Script';
+  }
+
+  function copyScript() {
+    navigator.clipboard.writeText(currentScript).then(() => {
+      const btn = document.querySelector('.btn-secondary:not(.primary)');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => btn.textContent = '📋 Copy Script', 2000);
+    });
+  }
+
+  function reset() {
+    document.getElementById('form-card').style.display = 'block';
+    document.getElementById('result-card').style.display = 'none';
+    document.getElementById('error-card').style.display = 'none';
+    document.getElementById('loading-card').style.display = 'none';
+    scriptVisible = false;
+    ['step-input','step-llm','step-script','step-tts','step-audio'].forEach(s => {
+      const el = document.getElementById(s);
+      el.classList.remove('active','done');
+    });
+    document.getElementById('step-input').classList.add('active');
+  }
+</script>
+</body>
+</html>

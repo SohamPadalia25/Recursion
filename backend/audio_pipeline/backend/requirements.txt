@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+httpx
+gTTS
+pdfplumber
+python-multipart
+# Optional: pydub for better audio merging (requires ffmpeg)
+# pydub==0.25.1
+# Optional: offline TTS
+# pyttsx3==2.90
