@@ -1,4 +1,4 @@
-﻿import express from "express";
+import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import graphRoutes from "./routes/graph.routes.js";
@@ -6,6 +6,8 @@ import videoCallRoutes from "./routes/videoCall.routes.js";
 import notesRoutes from "./routes/notes.routes.js";
 import mailerRoutes from "./routes/mailer.routes.js";
 import certificateRoutes from "./routes/certificate.routes.js";
+import userRoutes from "./routes/user.routes.js";
+import { adminRouter } from "./routes/other.routes.js";
 
 const app = express();
 
@@ -44,5 +46,7 @@ app.use("/api", certificateRoutes);
 app.use("/api/v1/video", videoCallRoutes);
 app.use("/api/v1/notes", notesRoutes);
 app.use("/api", mailerRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/admin", adminRouter);
 
 export default app;

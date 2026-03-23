@@ -136,7 +136,16 @@ export default function InstructorDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const initials = user?.name
+    ? user.name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+    : "IN";
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -221,7 +230,9 @@ export default function InstructorDashboard() {
         >
           <div>
             <h1 className="text-lg font-semibold text-foreground leading-tight">Instructor Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Welcome back, Dr. Mehra</p>
+            <p className="text-sm text-muted-foreground">
+              Welcome back, {user?.name ? user.name : "Instructor"}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Button size="sm" className="rounded-xl gap-2 bg-dei-sage hover:bg-dei-sage/90">
@@ -231,9 +242,13 @@ export default function InstructorDashboard() {
               <Bell className="w-4 h-4 text-muted-foreground" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-dei-rose rounded-full" />
             </button>
-            <button className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-muted/60 transition-colors">
+            <button
+              onClick={() => navigate("/profile")}
+              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-muted/60 transition-colors"
+              title="Open profile"
+            >
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-dei-sage to-dei-sky flex items-center justify-center">
-                <span className="text-xs font-bold text-primary-foreground">SM</span>
+                <span className="text-xs font-bold text-primary-foreground">{initials}</span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
             </button>

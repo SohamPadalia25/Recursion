@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/auth/AuthContext";
+import { getAdminStats } from "@/lib/user-api";
 import {
   AreaChart,
   Area,
@@ -104,7 +105,78 @@ export default function AdminDashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const initials = user?.name
+    ? user.name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+    : "AD";
+  const [adminStats, setAdminStats] = useState<Awaited<ReturnType<typeof getAdminStats>> | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = user?.accessToken;
+    if (!token) return;
+    setStatsError(null);
+    getAdminStats(token)
+      .then(setAdminStats)
+      .catch((err) => setStatsError(err instanceof Error ? err.message : "Failed to load admin stats"));
+  }, [user?.accessToken]);
+
+  const statsCards = adminStats
+    ? [
+        {
+          label: "Total Users",
+          value: adminStats.totalUsers.toLocaleString(),
+          icon: Users,
+          gradient: "dei-gradient-sky",
+          color: "text-dei-sky",
+          trend: `${adminStats.newUsers} new in 7d`,
+        },
+        {
+          label: "Published Courses",
+          value: adminStats.publishedCourses.toLocaleString(),
+          icon: BookOpen,
+          gradient: "dei-gradient-sage",
+          color: "text-dei-sage",
+          trend: `${adminStats.pendingApproval} pending`,
+        },
+        {
+          label: "Total Enrollments",
+          value: adminStats.totalEnrollments.toLocaleString(),
+          icon: DollarSign,
+          gradient: "dei-gradient-amber",
+          color: "text-dei-amber",
+          trend: "platform activity",
+        },
+        {
+          label: "Flagged Items",
+          value: (adminStats.flaggedChats + adminStats.flaggedReviews).toLocaleString(),
+          icon: AlertTriangle,
+          gradient: "dei-gradient-peach",
+          color: "text-dei-peach",
+          trend: "needs review",
+        },
+      ]
+    : [
+        { label: "Total Users", value: "12,847", icon: Users, gradient: "dei-gradient-sky", color: "text-dei-sky", trend: "+847 this month" },
+        { label: "Active Courses", value: "134", icon: BookOpen, gradient: "dei-gradient-sage", color: "text-dei-sage", trend: "+26 this month" },
+        { label: "Platform Revenue", value: "₹4.2L", icon: DollarSign, gradient: "dei-gradient-amber", color: "text-dei-amber", trend: "+32% MoM" },
+        { label: "Flagged Items", value: "7", icon: AlertTriangle, gradient: "dei-gradient-peach", color: "text-dei-peach", trend: "3 high priority" },
+      ];
+
+  const computedUserDistribution = adminStats
+    ? [
+        { name: "Students", value: adminStats.totalStudents, color: "hsl(210, 70%, 65%)" },
+        { name: "Instructors", value: adminStats.totalInstructors, color: "hsl(152, 35%, 55%)" },
+        { name: "Admins", value: Math.max(0, adminStats.totalUsers - adminStats.totalStudents - adminStats.totalInstructors), color: "hsl(16, 80%, 68%)" },
+        { name: "Suspended", value: 0, color: "hsl(220, 10%, 50%)" },
+      ]
+    : userDistribution;
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -188,7 +260,7 @@ export default function AdminDashboard() {
         >
           <div>
             <h1 className="text-lg font-semibold text-foreground leading-tight">Platform Overview</h1>
-            <p className="text-sm text-muted-foreground">Super Administrator</p>
+            <p className="text-sm text-muted-foreground">{user?.name ? `${user.name}` : "Super Administrator"}</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="relative hidden md:block">
@@ -202,9 +274,13 @@ export default function AdminDashboard() {
               <Bell className="w-4 h-4 text-muted-foreground" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full" />
             </button>
-            <button className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-muted/60 transition-colors">
+            <button
+              onClick={() => navigate("/profile")}
+              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-xl hover:bg-muted/60 transition-colors"
+              title="Open profile"
+            >
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-dei-lavender to-dei-rose flex items-center justify-center">
-                <span className="text-xs font-bold text-primary-foreground">SA</span>
+                <span className="text-xs font-bold text-primary-foreground">{initials}</span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
             </button>
@@ -223,13 +299,9 @@ export default function AdminDashboard() {
 
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
           {/* Stats */}
+          {statsError && <p className="text-sm text-destructive mb-3">{statsError}</p>}
           <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            {[
-              { label: "Total Users", value: "12,847", icon: Users, gradient: "dei-gradient-sky", color: "text-dei-sky", trend: "+847 this month" },
-              { label: "Active Courses", value: "134", icon: BookOpen, gradient: "dei-gradient-sage", color: "text-dei-sage", trend: "+26 this month" },
-              { label: "Platform Revenue", value: "₹4.2L", icon: DollarSign, gradient: "dei-gradient-amber", color: "text-dei-amber", trend: "+32% MoM" },
-              { label: "Flagged Items", value: "7", icon: AlertTriangle, gradient: "dei-gradient-peach", color: "text-dei-peach", trend: "3 high priority" },
-            ].map((stat) => (
+            {statsCards.map((stat) => (
               <motion.div key={stat.label} variants={item} whileHover={{ y: -2, transition: { duration: 0.2 } }} className="dei-card p-5 cursor-default">
                 <div className="flex items-center gap-4 mb-3">
                   <div className={`w-12 h-12 rounded-2xl ${stat.gradient} flex items-center justify-center`}>
@@ -287,8 +359,8 @@ export default function AdminDashboard() {
               <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={userDistribution} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
-                      {userDistribution.map((entry, i) => (
+                    <Pie data={computedUserDistribution} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
+                      {computedUserDistribution.map((entry, i) => (
                         <Cell key={i} fill={entry.color} />
                       ))}
                     </Pie>
@@ -297,7 +369,7 @@ export default function AdminDashboard() {
                 </ResponsiveContainer>
               </div>
               <div className="space-y-2 mt-2">
-                {userDistribution.map((d) => (
+                {computedUserDistribution.map((d) => (
                   <div key={d.name} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />

@@ -8,6 +8,7 @@ import { EventsPanel } from "@/components/dashboard/EventsPanel";
 import { ProgressChart } from "@/components/dashboard/ProgressChart";
 import { AIBuddy } from "@/components/dashboard/AIBuddy";
 import { TrendingCourses } from "@/components/dashboard/TrendingCourses";
+import { MyLearningBadges } from "@/components/dashboard/MyLearningBadges";
 import { Button } from "@/components/ui/button";
 import { verifyCompletion } from "@/lib/certificate-api";
 import { useAuth } from "@/auth/AuthContext";
@@ -98,6 +99,10 @@ const StudentDashboard = () => {
 
           <div className="mb-6">
             <StatsPanel />
+          </div>
+
+          <div className="mb-6">
+            <MyLearningBadges />
           </div>
 
           <div className="mb-6">
