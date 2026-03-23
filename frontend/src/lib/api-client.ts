@@ -52,7 +52,12 @@ type ApiRequestInit = Omit<RequestInit, "body"> & {
 
 export async function apiRequest<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
     const token = localStorage.getItem("dei-auth-access-token") || undefined;
-    const url = path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+    const normalizedBase = API_BASE_URL.replace(/\/api\/v1\/?$/i, "");
+    const pathWithoutLeadingSlash = path.startsWith("/") ? path.slice(1) : path;
+    const normalizedPath = pathWithoutLeadingSlash.startsWith("api/")
+        ? `/${pathWithoutLeadingSlash}`
+        : `/api/v1/${pathWithoutLeadingSlash}`;
+    const url = path.startsWith("http") ? path : `${normalizedBase}${normalizedPath}`;
 
     return apiFetch<T>(url, {
         method: (init.method as ApiFetchOptions["method"]) || "GET",
