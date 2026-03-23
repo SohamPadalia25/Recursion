@@ -6,10 +6,10 @@ import { Lesson } from '../models/lesson.model.js';
 import { Enrollment } from '../models/enrollment.model.js';
 
 const COMPLETION_THRESHOLD = 0.9;
-const UNKNOWN_DURATION_REQUIRED_SECONDS = 10;
 
 const getRequiredWatchSeconds = (lessonDuration = 0) => {
-    if (!lessonDuration || lessonDuration <= 0) return UNKNOWN_DURATION_REQUIRED_SECONDS;
+    // Lessons may be created before duration metadata is known; require at least 1s watch.
+    if (!lessonDuration || lessonDuration <= 0) return 1;
     return Math.ceil(lessonDuration * COMPLETION_THRESHOLD);
 };
 
@@ -24,7 +24,7 @@ const assertEnrollment = async (studentId, courseId) => {
 // POST /api/v1/progress/lesson/:lessonId/complete
 const markLessonComplete = asyncHandler(async (req, res) => {
     const { lessonId } = req.params;
-    const { courseId, watchedDuration, attentionScore } = req.body;
+    const { courseId, watchedDuration, attentionScore, lessonDurationSeconds } = req.body;
 
     if (!courseId) throw new ApiError(400, "courseId is required");
 
@@ -37,13 +37,24 @@ const markLessonComplete = asyncHandler(async (req, res) => {
 
     await assertEnrollment(req.user._id, courseId);
 
-    const requiredWatchSeconds = getRequiredWatchSeconds(lesson.duration || 0);
+    const reportedDuration = Number(lessonDurationSeconds);
+    const safeReportedDuration = Number.isFinite(reportedDuration) && reportedDuration > 0
+        ? Math.min(Math.round(reportedDuration), 60 * 60 * 8)
+        : 0;
+
+    const effectiveLessonDuration = Math.max(Number(lesson.duration || 0), safeReportedDuration);
+
+    if (effectiveLessonDuration > Number(lesson.duration || 0)) {
+        await Lesson.findByIdAndUpdate(lesson._id, { duration: effectiveLessonDuration });
+    }
+
+    const requiredWatchSeconds = getRequiredWatchSeconds(effectiveLessonDuration);
     const normalizedWatch = Math.max(0, Number(watchedDuration ?? 0));
-    const clampedWatch = lesson.duration > 0
-        ? Math.min(normalizedWatch, lesson.duration)
+    const clampedWatch = effectiveLessonDuration > 0
+        ? Math.min(normalizedWatch, effectiveLessonDuration)
         : normalizedWatch;
 
-    if (requiredWatchSeconds > 0 && clampedWatch < requiredWatchSeconds) {
+    if (clampedWatch < requiredWatchSeconds) {
         throw new ApiError(
             400,
             `Cannot complete lesson yet. Watch at least ${requiredWatchSeconds} seconds first`
@@ -59,7 +70,9 @@ const markLessonComplete = asyncHandler(async (req, res) => {
             lesson: lessonId,
             isCompleted: true,
             completedAt: new Date(),
-            watchedDuration: lesson.duration > 0 ? Math.min(clampedWatch, lesson.duration) : clampedWatch,
+            watchedDuration: effectiveLessonDuration > 0
+                ? Math.min(clampedWatch, effectiveLessonDuration)
+                : clampedWatch,
             attentionScore: attentionScore || null,
             lastWatchedAt: new Date(),
         },
@@ -78,7 +91,7 @@ const markLessonComplete = asyncHandler(async (req, res) => {
 // PATCH /api/v1/progress/lesson/:lessonId/watch
 const updateWatchTime = asyncHandler(async (req, res) => {
     const { lessonId } = req.params;
-    const { courseId, watchedDuration } = req.body;
+    const { courseId, watchedDuration, lessonDurationSeconds } = req.body;
 
     if (!courseId || watchedDuration === undefined) {
         throw new ApiError(400, "courseId and watchedDuration are required");
@@ -93,16 +106,49 @@ const updateWatchTime = asyncHandler(async (req, res) => {
 
     await assertEnrollment(req.user._id, courseId);
 
+    const reportedDuration = Number(lessonDurationSeconds);
+    const safeReportedDuration = Number.isFinite(reportedDuration) && reportedDuration > 0
+        ? Math.min(Math.round(reportedDuration), 60 * 60 * 8)
+        : 0;
+
+    const effectiveLessonDuration = Math.max(Number(lesson.duration || 0), safeReportedDuration);
+
+    if (effectiveLessonDuration > Number(lesson.duration || 0)) {
+        await Lesson.findByIdAndUpdate(lesson._id, { duration: effectiveLessonDuration });
+    }
+
     const normalizedWatch = Math.max(0, Number(watchedDuration));
-    const clampedWatch = lesson.duration > 0
-        ? Math.min(normalizedWatch, lesson.duration)
+    const clampedWatch = effectiveLessonDuration > 0
+        ? Math.min(normalizedWatch, effectiveLessonDuration)
         : normalizedWatch;
 
+    const now = new Date();
     const existing = await Progress.findOne({ student: req.user._id, lesson: lessonId });
     const previousWatch = Number(existing?.watchedDuration || 0);
-    const effectiveWatch = Math.max(previousWatch, clampedWatch);
+    let effectiveWatch = Math.max(previousWatch, clampedWatch);
 
-    const requiredWatchSeconds = getRequiredWatchSeconds(lesson.duration || 0);
+    let serverCappedIncrement = false;
+    if (existing?.lastWatchedAt) {
+        const elapsedSeconds = Math.max(
+            0,
+            (now.getTime() - new Date(existing.lastWatchedAt).getTime()) / 1000
+        );
+
+        // Protect against skip-to-end and forged payload jumps.
+        const maxAllowedIncrement = Math.max(2, Math.ceil(elapsedSeconds * 1.35) + 1);
+        const requestedIncrement = effectiveWatch - previousWatch;
+
+        if (requestedIncrement > maxAllowedIncrement) {
+            effectiveWatch = previousWatch + maxAllowedIncrement;
+            serverCappedIncrement = true;
+        }
+    }
+
+    if (effectiveLessonDuration > 0) {
+        effectiveWatch = Math.min(effectiveWatch, effectiveLessonDuration);
+    }
+
+    const requiredWatchSeconds = getRequiredWatchSeconds(effectiveLessonDuration);
     const shouldComplete = effectiveWatch >= requiredWatchSeconds;
 
     const becameCompleted = !existing?.isCompleted && shouldComplete;
@@ -112,7 +158,7 @@ const updateWatchTime = asyncHandler(async (req, res) => {
         {
             $set: {
                 watchedDuration: effectiveWatch,
-                lastWatchedAt: new Date(),
+                lastWatchedAt: now,
                 course: courseId,
                 isCompleted: existing?.isCompleted || shouldComplete,
                 completedAt: existing?.isCompleted
@@ -134,6 +180,8 @@ const updateWatchTime = asyncHandler(async (req, res) => {
             progress,
             requiredWatchSeconds,
             completionThreshold: COMPLETION_THRESHOLD,
+            serverCappedIncrement,
+            effectiveLessonDurationSeconds: effectiveLessonDuration,
         }, "Watch time updated")
     );
 });
@@ -168,24 +216,25 @@ const getCourseProgress = asyncHandler(async (req, res) => {
     }));
 
     const watchedSeconds = lessonsWithStatus.reduce((sum, lesson) => {
+        const lessonDuration = Number(lesson.duration || 0);
         const watched = Number(lesson.progress?.watchedDuration || 0);
+
+        if (lessonDuration > 0) {
+            return sum + Math.min(watched, lessonDuration);
+        }
+
         return sum + watched;
     }, 0);
 
-    const totalLessonDurationSeconds = lessonsWithStatus.reduce((sum, lesson) => sum + Number(lesson.duration || 0), 0);
-    const totalRequiredWatchSeconds = lessonsWithStatus.reduce((sum, lesson) => {
-        const required = getRequiredWatchSeconds(Number(lesson.duration || 0));
-        return sum + required;
-    }, 0);
-
-    const boundedWatchedAgainstRequired = lessonsWithStatus.reduce((sum, lesson) => {
-        const required = getRequiredWatchSeconds(Number(lesson.duration || 0));
+    const totalLessonDurationSeconds = lessonsWithStatus.reduce((sum, lesson) => {
+        const lessonDuration = Number(lesson.duration || 0);
         const watched = Number(lesson.progress?.watchedDuration || 0);
-        return sum + Math.min(watched, required);
+        // When stored duration is 0, use watched time as provisional duration baseline.
+        const effectiveDuration = lessonDuration > 0 ? lessonDuration : watched;
+        return sum + effectiveDuration;
     }, 0);
-
-    const watchProgressPercentage = totalRequiredWatchSeconds > 0
-        ? Math.min(100, Math.round((boundedWatchedAgainstRequired / totalRequiredWatchSeconds) * 100))
+    const watchProgressPercentage = totalLessonDurationSeconds > 0
+        ? Math.min(100, Math.round((watchedSeconds / totalLessonDurationSeconds) * 100))
         : 0;
 
     return res.status(200).json(
@@ -196,7 +245,6 @@ const getCourseProgress = asyncHandler(async (req, res) => {
             totalLessons: allLessons.length,
             watchedSeconds,
             totalLessonDurationSeconds,
-            totalRequiredWatchSeconds,
             watchProgressPercentage,
             lessons: lessonsWithStatus,
             enrollment,
@@ -225,9 +273,20 @@ const saveAttentionScore = asyncHandler(async (req, res) => {
 
     if (attentionScore === undefined) throw new ApiError(400, "attentionScore required");
 
+    const lesson = await Lesson.findById(lessonId).select("_id course");
+    if (!lesson) throw new ApiError(404, "Lesson not found");
+
+    if (lesson.course.toString() !== String(courseId)) {
+        throw new ApiError(400, "lessonId does not belong to the supplied courseId");
+    }
+
+    await assertEnrollment(req.user._id, courseId);
+
+    const normalizedScore = Math.max(0, Math.min(100, Number(attentionScore)));
+
     await Progress.findOneAndUpdate(
         { student: req.user._id, lesson: lessonId },
-        { $set: { attentionScore, course: courseId } },
+        { $set: { attentionScore: normalizedScore, course: courseId } },
         { upsert: true }
     );
 

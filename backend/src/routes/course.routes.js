@@ -19,6 +19,7 @@ import {
     deleteCourse,
     getMyCoursesAsInstructor,
     submitForApproval,
+    uploadDraftLessonVideo,
 } from "../controllers/course.controlller.js";
 
 // ─── PLATFORM STATS ─────────────────────────────────────────
@@ -288,9 +289,11 @@ export {
 // ─── COURSE ROUTES (mounted at /api/v1/courses) ─────────────────────────────
 const courseRouter = Router();
 
+courseRouter.route("/uploads/lesson-video").post(verifyJWT, isInstructor, upload.single("video"), uploadDraftLessonVideo);
 courseRouter.route("/").get(getAllCourses).post(verifyJWT, isInstructor, upload.single("thumbnail"), createCourse);
 courseRouter.route("/my-courses").get(verifyJWT, isInstructor, getMyCoursesAsInstructor);
 courseRouter.route("/:courseId").get(getCourse).patch(verifyJWT, isInstructor, upload.single("thumbnail"), updateCourse).delete(verifyJWT, isInstructor, deleteCourse);
+courseRouter.route("/:courseId/publish").patch(verifyJWT, isInstructor, submitForApproval);
 courseRouter.route("/:courseId/submit").patch(verifyJWT, isInstructor, submitForApproval);
 
 export default courseRouter;

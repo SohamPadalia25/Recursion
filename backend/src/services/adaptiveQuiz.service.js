@@ -49,7 +49,7 @@ Return ONLY valid JSON in this exact format, no extra text:
 
   const raw = await chatWithGroq(
     [{ role: "user", content: prompt }],
-    "llama3-8b-8192",
+    process.env.GROQ_QUIZ_MODEL,
     true // json mode
   );
 
