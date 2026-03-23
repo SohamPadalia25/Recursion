@@ -27,7 +27,7 @@ export type QuizDistribution = {
 export type QuizBank = {
   _id: string;
   title: string;
-  sourceType: "manual" | "auto" | "prompt" | "pdf";
+  sourceType: "manual" | "auto" | "prompt" | "pdf" | "topic";
   questions: QuizBankQuestionInput[];
   distribution: QuizDistribution;
   isPublished: boolean;
@@ -77,8 +77,9 @@ export async function createManualQuizBank(payload: {
 
 export async function generateQuizBank(payload: {
   title: string;
-  sourceType: "auto" | "prompt" | "pdf";
+  sourceType: "auto" | "prompt" | "pdf" | "topic";
   prompt?: string;
+  topic?: string;
   distribution: QuizDistribution;
   maxWarnings: number;
   courseId?: string;
@@ -93,6 +94,7 @@ export async function generateQuizBank(payload: {
   formData.append("distribution", JSON.stringify(payload.distribution));
   formData.append("maxWarnings", String(payload.maxWarnings));
   if (payload.prompt) formData.append("prompt", payload.prompt);
+  if (payload.topic) formData.append("topic", payload.topic);
   if (payload.courseId) formData.append("courseId", payload.courseId);
   if (payload.lessonId) formData.append("lessonId", payload.lessonId);
   if (payload.pdfFile) formData.append("pdf", payload.pdfFile);

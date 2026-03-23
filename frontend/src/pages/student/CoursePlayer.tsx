@@ -13,6 +13,20 @@ import {
     updateLessonWatchTime,
 } from "@/lib/course-api";
 
+type FaceLandmarkPoint = {
+    x: number;
+    y: number;
+};
+
+type FaceLandmarkerResultLike = {
+    faceLandmarks?: FaceLandmarkPoint[][];
+};
+
+type FaceLandmarkerLike = {
+    detectForVideo: (video: HTMLVideoElement, timestampMs: number) => FaceLandmarkerResultLike;
+    close?: () => Promise<void> | void;
+};
+
 const FAST_FORWARD_THRESHOLD = 1.5;
 const SEEK_EVENT_WINDOW_MS = 60_000;
 const SEEK_EVENT_THRESHOLD = 4;
@@ -48,7 +62,7 @@ export default function StudentCoursePlayerPage() {
     const webcamCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const webcamStreamRef = useRef<MediaStream | null>(null);
     const trackerLoopRef = useRef<number | null>(null);
-    const faceLandmarkerRef = useRef<any>(null);
+    const faceLandmarkerRef = useRef<FaceLandmarkerLike | null>(null);
     const lastSyncAtRef = useRef(0);
     const persistedWatchRef = useRef(0);
     const lastPlaybackTimeRef = useRef<number | null>(null);
@@ -663,7 +677,7 @@ export default function StudentCoursePlayerPage() {
         }
 
         void persistAttentionScore();
-    }, [persistAttentionScore, persistWatchProgress]);
+    }, [activeLessonId, persistAttentionScore, persistWatchProgress]);
 
     const handleVideoPlay = useCallback(() => {
         const video = videoRef.current;

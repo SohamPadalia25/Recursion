@@ -12,6 +12,9 @@ export default function StudentPracticePage() {
   const [warningCount, setWarningCount] = useState(0);
   const [result, setResult] = useState<{ score: number; isPassed: boolean; isTerminatedForCheating: boolean } | null>(null);
   const [error, setError] = useState("");
+  const [warningMessage, setWarningMessage] = useState("");
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const startTimeRef = useRef<number>(0);
 
   const pushActivity = (eventType: string, meta = "") => {
@@ -21,6 +24,7 @@ export default function StudentPracticePage() {
   const addWarning = (reason: string) => {
     setWarningCount((prev) => prev + 1);
     pushActivity("click", `warning:${reason}`);
+    setWarningMessage(reason);
   };
 
   useEffect(() => {
@@ -79,10 +83,13 @@ export default function StudentPracticePage() {
 
   const start = async (quizId: string) => {
     setError("");
+    setWarningMessage("");
     setResult(null);
     setWarningCount(0);
     setActivityLogs([]);
     setAnswers({});
+    setCurrentQuestionIndex(0);
+    setIsSubmitting(false);
     try {
       const data = await startQuiz(quizId);
       setActiveQuiz(data);
@@ -95,9 +102,20 @@ export default function StudentPracticePage() {
 
   const questions = activeQuiz?.questions || [];
   const answeredCount = useMemo(() => Object.keys(answers).length, [answers]);
+  const currentQuestion = questions[currentQuestionIndex] || null;
+  const isLastQuestion = questions.length > 0 && currentQuestionIndex === questions.length - 1;
 
-  const submit = async () => {
-    if (!activeQuiz) return;
+  const clearQuizState = async () => {
+    setActiveQuiz(null);
+    setCurrentQuestionIndex(0);
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    }
+  };
+
+  const submit = async (forcedReason?: string) => {
+    if (!activeQuiz || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const formattedAnswers = questions.map((q) => ({
         questionId: q.questionId,
@@ -112,11 +130,33 @@ export default function StudentPracticePage() {
         activityLogs,
       });
       setResult(data);
-      setActiveQuiz(null);
-      if (document.fullscreenElement) await document.exitFullscreen();
+      if (forcedReason) {
+        setError(`Quiz was auto-submitted: ${forcedReason}`);
+      }
+      await clearQuizState();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Submission failed");
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  useEffect(() => {
+    if (!activeQuiz) return;
+    if (warningCount >= activeQuiz.maxWarnings) {
+      void submit("Maximum warning limit reached");
+    }
+  }, [activeQuiz, warningCount]);
+
+  useEffect(() => {
+    if (!warningMessage) return;
+    const id = window.setTimeout(() => setWarningMessage(""), 2600);
+    return () => window.clearTimeout(id);
+  }, [warningMessage]);
+
+  const goNextQuestion = () => {
+    if (!activeQuiz) return;
+    setCurrentQuestionIndex((prev) => Math.min(prev + 1, activeQuiz.questions.length - 1));
   };
 
   return (
@@ -149,19 +189,30 @@ export default function StudentPracticePage() {
             <p className="font-semibold">{activeQuiz.title}</p>
             <p className="text-muted-foreground">Fullscreen is required. Warnings: {warningCount}/{activeQuiz.maxWarnings}</p>
           </div>
+          {warningMessage ? (
+            <div className="rounded-xl border border-amber-500/60 bg-amber-500/10 p-3 text-sm text-amber-700">
+              Warning: {warningMessage}
+            </div>
+          ) : null}
           <p className="text-sm text-muted-foreground">Answered {answeredCount} of {questions.length}</p>
-          {questions.map((q, index) => (
-            <article key={q.questionId} className="rounded-xl border border-border bg-card p-4">
-              <p className="mb-3 font-medium">{index + 1}. {q.text}</p>
-              {q.type === "mcq" ? (
+          {currentQuestion ? (
+            <article key={currentQuestion.questionId} className="rounded-xl border border-border bg-card p-4">
+              <p className="mb-2 text-xs text-muted-foreground">Question {currentQuestionIndex + 1} of {questions.length}</p>
+              <p className="mb-3 font-medium">{currentQuestion.text}</p>
+              {currentQuestion.type === "mcq" ? (
                 <div className="space-y-2">
-                  {q.options.map((opt, i) => (
+                  {currentQuestion.options.map((opt, i) => (
                     <label key={i} className="flex items-center gap-2 text-sm">
                       <input
                         type="radio"
-                        name={q.questionId}
-                        checked={answers[q.questionId]?.selectedIndex === i}
-                        onChange={() => setAnswers((prev) => ({ ...prev, [q.questionId]: { ...prev[q.questionId], selectedIndex: i } }))}
+                        name={currentQuestion.questionId}
+                        checked={answers[currentQuestion.questionId]?.selectedIndex === i}
+                        onChange={() =>
+                          setAnswers((prev) => ({
+                            ...prev,
+                            [currentQuestion.questionId]: { ...prev[currentQuestion.questionId], selectedIndex: i },
+                          }))
+                        }
                       />
                       {opt}
                     </label>
@@ -169,15 +220,40 @@ export default function StudentPracticePage() {
                 </div>
               ) : (
                 <textarea
-                  value={answers[q.questionId]?.answerText || ""}
-                  onChange={(e) => setAnswers((prev) => ({ ...prev, [q.questionId]: { ...prev[q.questionId], answerText: e.target.value } }))}
+                  value={answers[currentQuestion.questionId]?.answerText || ""}
+                  onChange={(e) =>
+                    setAnswers((prev) => ({
+                      ...prev,
+                      [currentQuestion.questionId]: { ...prev[currentQuestion.questionId], answerText: e.target.value },
+                    }))
+                  }
                   className="min-h-24 w-full rounded-lg border border-border p-2 text-sm"
-                  placeholder={q.type === "brief" ? "Write a short answer..." : "Write a detailed answer..."}
+                  placeholder={currentQuestion.type === "brief" ? "Write a short answer..." : "Write a detailed answer..."}
                 />
               )}
             </article>
-          ))}
-          <Button className="w-full rounded-xl" onClick={submit}>Submit Quiz</Button>
+          ) : null}
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => setCurrentQuestionIndex((prev) => Math.max(prev - 1, 0))}
+              disabled={currentQuestionIndex === 0 || isSubmitting}
+            >
+              Previous Question
+            </Button>
+
+            {!isLastQuestion ? (
+              <Button className="flex-1 rounded-xl" onClick={goNextQuestion} disabled={!currentQuestion || isSubmitting}>
+                Next Question
+              </Button>
+            ) : (
+              <Button className="flex-1 rounded-xl" onClick={() => submit()} disabled={!currentQuestion || isSubmitting}>
+                {isSubmitting ? "Submitting..." : "Submit Quiz"}
+              </Button>
+            )}
+          </div>
         </section>
       )}
     </AppFrame>

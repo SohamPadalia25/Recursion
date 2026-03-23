@@ -64,6 +64,7 @@ const parseGeneratedQuestions = (raw) => {
 const generateQuestionsWithAI = async ({
   sourceType,
   prompt,
+  topic,
   pdfText,
   lessonId,
   requestedCounts,
@@ -79,6 +80,8 @@ const generateQuestionsWithAI = async ({
   const baseContext =
     sourceType === "pdf"
       ? `PDF content:\n${pdfText?.slice(0, 8000) || ""}`
+      : sourceType === "topic"
+        ? `Topic provided by instructor:\n${topic || ""}`
       : sourceType === "prompt"
         ? `Instructor prompt:\n${prompt || ""}`
         : `Lesson context:\n${lessonContext || "General software engineering topics."}`;
@@ -202,7 +205,7 @@ const createQuizBank = asyncHandler(async (req, res) => {
 });
 
 const generateQuizBank = asyncHandler(async (req, res) => {
-  const { title, sourceType, prompt, courseId, lessonId, maxWarnings } = req.body;
+  const { title, sourceType, prompt, topic, courseId, lessonId, maxWarnings } = req.body;
   let distribution = req.body.distribution;
   if (typeof distribution === "string") {
     try {
@@ -212,8 +215,9 @@ const generateQuizBank = asyncHandler(async (req, res) => {
     }
   }
   if (!title?.trim()) throw new ApiError(400, "title is required");
-  if (!["auto", "prompt", "pdf"].includes(sourceType)) throw new ApiError(400, "Invalid sourceType");
+  if (!["auto", "prompt", "pdf", "topic"].includes(sourceType)) throw new ApiError(400, "Invalid sourceType");
   if (sourceType === "prompt" && !prompt?.trim()) throw new ApiError(400, "prompt is required for prompt mode");
+  if (sourceType === "topic" && !topic?.trim()) throw new ApiError(400, "topic is required for topic mode");
   if (sourceType === "pdf" && !req.file?.path) throw new ApiError(400, "PDF file is required");
 
   let pdfText = "";
@@ -228,6 +232,7 @@ const generateQuizBank = asyncHandler(async (req, res) => {
   const questions = await generateQuestionsWithAI({
     sourceType,
     prompt,
+    topic,
     pdfText,
     lessonId,
     requestedCounts: normalizedDistribution,
@@ -239,7 +244,7 @@ const generateQuizBank = asyncHandler(async (req, res) => {
     course: courseId || null,
     lesson: lessonId || null,
     sourceType,
-    generationPrompt: prompt || "",
+    generationPrompt: prompt || topic || "",
     questions,
     distribution: normalizedDistribution,
     maxWarnings: Number(maxWarnings || 3),
