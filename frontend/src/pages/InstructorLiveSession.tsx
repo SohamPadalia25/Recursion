@@ -110,11 +110,25 @@ const InstructorLiveSession = () => {
       }
 
       // Connect to Twilio Video room
-      const room = await TwilioVideo.connect(tokenResponse.token, {
-        name: newRoomName,
-        audio: true,
-        video: { width: 640, height: 480 },
-      });
+      let room;
+      try {
+        room = await TwilioVideo.connect(tokenResponse.token, {
+          name: newRoomName,
+          audio: true,
+          video: { width: 640, height: 480 },
+        });
+      } catch (videoError: any) {
+        if (videoError?.message?.toLowerCase().includes("video source")) {
+          room = await TwilioVideo.connect(tokenResponse.token, {
+            name: newRoomName,
+            audio: true,
+            video: false,
+          });
+          setIsCameraOff(true);
+        } else {
+          throw videoError;
+        }
+      }
 
       roomRef.current = room;
 

@@ -74,7 +74,7 @@ const StudentJoinSession = () => {
 
   // ─── Fetch active rooms on load and periodically ─────────────────────────────
   useEffect(() => {
-    if (!currentUser?._id) return;
+    if (!currentUser?._id || sessionJoined) return;
 
     const fetchActiveRooms = async () => {
       setIsFetchingRooms(true);
@@ -96,9 +96,9 @@ const StudentJoinSession = () => {
     };
 
     fetchActiveRooms();
-    const interval = setInterval(fetchActiveRooms, 3000);
+    const interval = setInterval(fetchActiveRooms, 15000);
     return () => clearInterval(interval);
-  }, [currentUser]);
+  }, [currentUser, sessionJoined]);
 
   // ─── Socket.io for real-time updates ─────────────────────────────────────────
   useEffect(() => {
@@ -228,11 +228,25 @@ const StudentJoinSession = () => {
         throw new Error(tokenResponse.error || "Failed to get token");
       }
 
-      const room = await TwilioVideo.connect(tokenResponse.token, {
-        name: roomName,
-        audio: true,
-        video: { width: 640, height: 480 },
-      });
+      let room;
+      try {
+        room = await TwilioVideo.connect(tokenResponse.token, {
+          name: roomName,
+          audio: true,
+          video: { width: 640, height: 480 },
+        });
+      } catch (videoError: any) {
+        if (videoError?.message?.toLowerCase().includes("video source")) {
+          room = await TwilioVideo.connect(tokenResponse.token, {
+            name: roomName,
+            audio: true,
+            video: false,
+          });
+          setIsCameraOff(true);
+        } else {
+          throw videoError;
+        }
+      }
 
       roomRef.current = room;
 
