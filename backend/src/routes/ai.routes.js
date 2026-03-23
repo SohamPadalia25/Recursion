@@ -17,6 +17,7 @@ import {
   findJobs,
    getLessonTranscript,
   analyzeNotes,
+  analyzeDoubt,
 } from "../controllers/ai.controller.js";
 
 const router = Router();
@@ -70,5 +71,9 @@ router.get("/transcript/:lessonId", getLessonTranscript);
 // ── Notes AI ─────────────────────────────────
 // POST /api/v1/ai/notes/analyze
 router.post("/notes/analyze", analyzeNotes);
+
+// ── Doubt AI ─────────────────────────────────
+// POST /api/v1/ai/doubt/analyze
+router.post("/doubt/analyze", analyzeDoubt);
 
 export default router;

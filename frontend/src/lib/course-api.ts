@@ -111,6 +111,13 @@ export type NotesAnalysis = {
     }>;
 };
 
+export type DoubtAnalysis = {
+    explanation: string;
+    simplerExplanation: string;
+    relatedPrerequisite: string;
+    prerequisiteWhy: string;
+};
+
 export type LessonWatchUpdateResult = {
     progress: {
         _id: string;
@@ -187,6 +194,19 @@ export async function analyzeLessonNotes(payload: {
     notes: TimestampNoteInput[];
 }) {
     return apiRequest<NotesAnalysis>("/api/v1/ai/notes/analyze", {
+        method: "POST",
+        body: payload,
+    });
+}
+
+export async function analyzeLessonDoubt(payload: {
+    lessonTitle?: string;
+    courseTitle?: string;
+    timestamp: string;
+    transcript?: string;
+    contextSegments?: Array<{ timestamp?: string; text?: string }>;
+}) {
+    return apiRequest<DoubtAnalysis>("/api/v1/ai/doubt/analyze", {
         method: "POST",
         body: payload,
     });
