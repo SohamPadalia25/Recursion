@@ -1,0 +1,1098 @@
+{
+  "info": {
+    "name": "Recursion Backend API",
+    "_postman_id": "c6b7a3de-1b0c-4d3f-8d0d-2b4f9c4c9b2a",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000/api/v1" },
+    { "key": "accessTokenStudent", "value": "" },
+    { "key": "refreshTokenStudent", "value": "" },
+    { "key": "accessTokenInstructor", "value": "" },
+    { "key": "refreshTokenInstructor", "value": "" },
+    { "key": "accessTokenAdmin", "value": "" },
+    { "key": "refreshTokenAdmin", "value": "" },
+    { "key": "usernameStudent", "value": "student1" },
+    { "key": "passwordStudent", "value": "Password123!" },
+    { "key": "usernameInstructor", "value": "instructor1" },
+    { "key": "passwordInstructor", "value": "Password123!" },
+    { "key": "usernameAdmin", "value": "admin1" },
+    { "key": "passwordAdmin", "value": "Password123!" },
+    { "key": "courseId", "value": "" },
+    { "key": "moduleId", "value": "" },
+    { "key": "moduleIdPrev", "value": "" },
+    { "key": "lessonId", "value": "" },
+    { "key": "studentId", "value": "" },
+    { "key": "postId", "value": "" },
+    { "key": "notificationId", "value": "" },
+    { "key": "quizId", "value": "" },
+    { "key": "flashcardId", "value": "" },
+    { "key": "sessionId", "value": "" },
+    { "key": "avatarFile", "value": "C:/path/to/avatar.jpg" },
+    { "key": "coverImageFile", "value": "C:/path/to/cover.jpg" },
+    { "key": "thumbnailFile", "value": "C:/path/to/thumbnail.jpg" },
+    { "key": "videoFile", "value": "C:/path/to/video.mp4" }
+  ],
+  "item": [
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Register (student/instructor/admin) [multipart]",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "url": "{{baseUrl}}/users/register",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "fullname", "value": "Test User" },
+                { "key": "username", "value": "student1" },
+                { "key": "email", "value": "student1@example.com" },
+                { "key": "password", "value": "Password123!" },
+                { "key": "role", "value": "student" },
+                { "key": "avatar", "type": "file", "src": "{{avatarFile}}" },
+                { "key": "coverImage", "type": "file", "src": "{{coverImageFile}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Login (student) [sets accessTokenStudent]",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/users/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameStudent}}\",\n  \"password\": \"{{passwordStudent}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json?.data;",
+                  "if (data?.accessToken) pm.collectionVariables.set('accessTokenStudent', data.accessToken);",
+                  "if (data?.refreshToken) pm.collectionVariables.set('refreshTokenStudent', data.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (instructor) [sets accessTokenInstructor]",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/users/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameInstructor}}\",\n  \"password\": \"{{passwordInstructor}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json?.data;",
+                  "if (data?.accessToken) pm.collectionVariables.set('accessTokenInstructor', data.accessToken);",
+                  "if (data?.refreshToken) pm.collectionVariables.set('refreshTokenInstructor', data.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (admin) [sets accessTokenAdmin]",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/users/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{usernameAdmin}}\",\n  \"password\": \"{{passwordAdmin}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json?.data;",
+                  "if (data?.accessToken) pm.collectionVariables.set('accessTokenAdmin', data.accessToken);",
+                  "if (data?.refreshToken) pm.collectionVariables.set('refreshTokenAdmin', data.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get current user (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/users/current-user"
+          }
+        },
+        {
+          "name": "Update avatar [multipart] (student)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "url": "{{baseUrl}}/users/avatar",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "avatar", "type": "file", "src": "{{avatarFile}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update cover image [multipart] (student)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "url": "{{baseUrl}}/users/cover-image",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "coverImage", "type": "file", "src": "{{coverImageFile}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get my learning (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/users/my-learning"
+          }
+        },
+        {
+          "name": "Get my badges (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/users/my-badges"
+          }
+        }
+        ,
+        {
+          "name": "Get user profile (public)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/users/profile/{{usernameStudent}}"
+          }
+        },
+        {
+          "name": "Refresh access token (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/users/refresh-token",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshTokenStudent}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const data = json?.data;",
+                  "if (data?.accessToken) pm.collectionVariables.set('accessTokenStudent', data.accessToken);",
+                  "if (data?.refreshToken) pm.collectionVariables.set('refreshTokenStudent', data.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update account details (student)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/users/update-account",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullname\": \"Test User Updated\",\n  \"bio\": \"New bio\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Change password (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/users/change-password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"{{passwordStudent}}\",\n  \"newPassword\": \"NewPassword123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/users/logout"
+          }
+        },
+        {
+          "name": "Get user by id (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenAdmin}}" }
+            ],
+            "url": "{{baseUrl}}/users/{{studentId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Courses",
+      "item": [
+        {
+          "name": "Get all courses (public)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/courses?category=&level=&search=&page=1&limit=12"
+          }
+        },
+        {
+          "name": "Create course [multipart] (instructor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" }
+            ],
+            "url": "{{baseUrl}}/courses",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Node Basics" },
+                { "key": "description", "value": "Learn Node.js from scratch." },
+                { "key": "category", "value": "Backend" },
+                { "key": "price", "value": "49" },
+                { "key": "level", "value": "beginner" },
+                { "key": "language", "value": "English" },
+                { "key": "tags", "value": "node,express,backend" },
+                { "key": "thumbnail", "type": "file", "src": "{{thumbnailFile}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get course (public) by id",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/courses/{{courseId}}"
+          }
+        },
+        {
+          "name": "My courses (instructor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" }
+            ],
+            "url": "{{baseUrl}}/courses/my-courses"
+          }
+        },
+        {
+          "name": "Update course [multipart] (instructor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" },
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "url": "{{baseUrl}}/courses/{{courseId}}",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Node Basics (Updated)" },
+                { "key": "thumbnail", "type": "file", "src": "{{thumbnailFile}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Submit course for approval (instructor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" }
+            ],
+            "url": "{{baseUrl}}/courses/{{courseId}}/submit"
+          }
+        },
+        {
+          "name": "Delete course (instructor)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" }
+            ],
+            "url": "{{baseUrl}}/courses/{{courseId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Modules",
+      "item": [
+        {
+          "name": "Get modules by course (public)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/modules/course/{{courseId}}"
+          }
+        },
+        {
+          "name": "Create module (instructor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/modules",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"title\": \"Module 1\",\n  \"description\": \"Intro module\",\n  \"prerequisiteModule\": \"{{moduleIdPrev}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update module (instructor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/modules/{{moduleId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Module 1 (Updated)\",\n  \"order\": 1,\n  \"isLocked\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Reorder modules (instructor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/modules/reorder",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"modules\": [\n    { \"moduleId\": \"{{moduleId}}\", \"order\": 1 }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete module (instructor)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" }
+            ],
+            "url": "{{baseUrl}}/modules/{{moduleId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lessons",
+      "item": [
+        {
+          "name": "Get module lessons (public)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/lessons/module/{{moduleId}}"
+          }
+        },
+        {
+          "name": "Create lesson [multipart] (instructor)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" }
+            ],
+            "url": "{{baseUrl}}/lessons",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "moduleId", "value": "{{moduleId}}" },
+                { "key": "courseId", "value": "{{courseId}}" },
+                { "key": "title", "value": "Lesson 1" },
+                { "key": "description", "value": "Lesson intro" },
+                { "key": "isFree", "value": "true" },
+                { "key": "videoUrl", "value": "" },
+                { "key": "video", "type": "file", "src": "{{videoFile}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get lesson (secured) by id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/lessons/{{lessonId}}"
+          }
+        },
+        {
+          "name": "Update lesson [multipart] (instructor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" },
+              { "key": "Content-Type", "value": "multipart/form-data" }
+            ],
+            "url": "{{baseUrl}}/lessons/{{lessonId}}",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Lesson 1 (Updated)" },
+                { "key": "description", "value": "Updated description" },
+                { "key": "isFree", "value": "true" },
+                { "key": "video", "type": "file", "src": "{{videoFile}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete lesson (instructor)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" }
+            ],
+            "url": "{{baseUrl}}/lessons/{{lessonId}}"
+          }
+        },
+        {
+          "name": "Add resource to lesson (instructor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/lessons/{{lessonId}}/resource",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"PDF Notes\",\n  \"url\": \"https://example.com/notes.pdf\",\n  \"type\": \"pdf\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Enrollments",
+      "item": [
+        {
+          "name": "Enroll in course (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/enrollments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"studyGoal\": \"Complete the course\",\n  \"deadline\": \"2026-03-30\"\n}"
+            }
+          }
+        },
+        {
+          "name": "My enrollments (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/enrollments/my"
+          }
+        },
+        {
+          "name": "Enrollment status (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/enrollments/status/{{courseId}}"
+          }
+        },
+        {
+          "name": "Students in course (instructor/admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" }
+            ],
+            "url": "{{baseUrl}}/enrollments/course/{{courseId}}/students"
+          }
+        },
+        {
+          "name": "Unenroll from course (student)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/enrollments/{{courseId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Progress",
+      "item": [
+        {
+          "name": "Mark lesson complete (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/progress/lesson/{{lessonId}}/complete",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"watchedDuration\": 120,\n  \"attentionScore\": 0.8\n}"
+            }
+          }
+        },
+        {
+          "name": "Update watch time (student)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/progress/lesson/{{lessonId}}/watch",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"watchedDuration\": 130\n}"
+            }
+          }
+        },
+        {
+          "name": "Save attention score (student)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/progress/lesson/{{lessonId}}/attention",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"attentionScore\": 0.75\n}"
+            }
+          }
+        },
+        {
+          "name": "Get course progress (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/progress/course/{{courseId}}"
+          }
+        },
+        {
+          "name": "Get student progress (instructor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" }
+            ],
+            "url": "{{baseUrl}}/progress/student/{{studentId}}/course/{{courseId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Discussions",
+      "item": [
+        {
+          "name": "Create post (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/discussions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"lessonId\": \"{{lessonId}}\",\n  \"content\": \"Great lesson!\",\n  \"parentPost\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Get discussions (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/discussions/{{courseId}}?lessonId={{lessonId}}&page=1&limit=20"
+          }
+        },
+        {
+          "name": "Get replies for post",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/discussions/replies/{{postId}}"
+          }
+        },
+        {
+          "name": "Upvote post",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/discussions/{{postId}}/upvote"
+          }
+        },
+        {
+          "name": "Pin/unpin post (instructor)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenInstructor}}" }
+            ],
+            "url": "{{baseUrl}}/discussions/{{postId}}/pin"
+          }
+        },
+        {
+          "name": "Delete post (author/instructor/admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/discussions/{{postId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Create review (student, must be enrolled)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/reviews",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"rating\": 5,\n  \"comment\": \"Awesome!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get course reviews (public)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/reviews/{{courseId}}?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Delete my review (student)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/reviews/{{courseId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get my notifications (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/notifications"
+          }
+        },
+        {
+          "name": "Mark all notifications as read (student)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/notifications/read-all"
+          }
+        },
+        {
+          "name": "Mark one notification read (student)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/notifications/{{notificationId}}/read"
+          }
+        },
+        {
+          "name": "Delete notification (student)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/notifications/{{notificationId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Platform stats (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenAdmin}}" }
+            ],
+            "url": "{{baseUrl}}/admin/stats"
+          }
+        },
+        {
+          "name": "Get all users (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenAdmin}}" }
+            ],
+            "url": "{{baseUrl}}/admin/users?role=&search=&page=1&limit=20"
+          }
+        },
+        {
+          "name": "Change user role (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenAdmin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/admin/users/{{studentId}}/role",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"role\": \"instructor\" }"
+            }
+          }
+        },
+        {
+          "name": "Get all courses admin view (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenAdmin}}" }
+            ],
+            "url": "{{baseUrl}}/admin/courses?status=&page=1&limit=20"
+          }
+        },
+        {
+          "name": "Pending courses (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenAdmin}}" }
+            ],
+            "url": "{{baseUrl}}/admin/courses/pending"
+          }
+        },
+        {
+          "name": "Approve course (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenAdmin}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/admin/courses/{{courseId}}/approve",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"approve\": true, \"reason\": \"Looks good\" }"
+            }
+          }
+        },
+        {
+          "name": "Unpublish course (admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenAdmin}}" }
+            ],
+            "url": "{{baseUrl}}/admin/courses/{{courseId}}/unpublish"
+          }
+        },
+        {
+          "name": "Flagged AI chats (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenAdmin}}" }
+            ],
+            "url": "{{baseUrl}}/admin/ai/flagged-chats"
+          }
+        },
+        {
+          "name": "AI usage stats (admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenAdmin}}" }
+            ],
+            "url": "{{baseUrl}}/admin/ai/usage"
+          }
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "item": [
+        {
+          "name": "Dashboard context (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/ai/dashboard/{{courseId}}"
+          }
+        },
+        {
+          "name": "Tutor chat (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/ai/tutor/chat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"lessonId\": \"{{lessonId}}\",\n  \"message\": \"Explain this part.\",\n  \"sessionId\": null\n}"
+            }
+          }
+        },
+        {
+          "name": "Flag tutor response (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/ai/tutor/flag",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{sessionId}}\",\n  \"reason\": \"Wrong answer\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Tutor history (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/ai/tutor/history/{{courseId}}?lessonId={{lessonId}}"
+          }
+        },
+        {
+          "name": "Quiz fetch (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/ai/quiz/{{lessonId}}?courseId={{courseId}}"
+          }
+        },
+        {
+          "name": "Submit quiz (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/ai/quiz/submit",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quizId\": \"{{quizId}}\",\n  \"lessonId\": \"{{lessonId}}\",\n  \"courseId\": \"{{courseId}}\",\n  \"answers\": [ { \"questionId\": \"q1\", \"answer\": \"A\" } ],\n  \"timeTaken\": 90\n}"
+            }
+          }
+        },
+        {
+          "name": "Regenerate quiz (student path)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/ai/quiz/regenerate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lessonId\": \"{{lessonId}}\",\n  \"courseId\": \"{{courseId}}\",\n  \"difficulty\": \"medium\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Generate flashcards (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/ai/flashcards/generate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lessonId\": \"{{lessonId}}\",\n  \"courseId\": \"{{courseId}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Due flashcards (student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" }
+            ],
+            "url": "{{baseUrl}}/ai/flashcards/due/{{courseId}}"
+          }
+        },
+        {
+          "name": "Review flashcard (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/ai/flashcards/review",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flashcardId\": \"{{flashcardId}}\",\n  \"quality\": 4\n}"
+            }
+          }
+        },
+        {
+          "name": "Create study plan (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/ai/study-plan/create",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"goalText\": \"Finish chapter 1\",\n  \"deadline\": \"2026-03-30\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Replan study (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessTokenStudent}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/ai/study-plan/replan",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"courseId\": \"{{courseId}}\" }"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
+
