@@ -1,0 +1,113 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 36 33% 97%;
+    --foreground: 230 25% 18%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 230 25% 18%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 25% 18%;
+
+    --primary: 16 80% 68%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 152 30% 88%;
+    --secondary-foreground: 152 40% 30%;
+
+    --muted: 220 20% 95%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 210 60% 90%;
+    --accent-foreground: 210 60% 30%;
+
+    --destructive: 0 72% 65%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 92%;
+    --input: 220 20% 92%;
+    --ring: 16 80% 68%;
+
+    --radius: 1rem;
+
+    /* Dei custom palette */
+    --dei-peach: 16 80% 68%;
+    --dei-peach-light: 16 90% 92%;
+    --dei-sage: 152 35% 55%;
+    --dei-sage-light: 152 40% 92%;
+    --dei-sky: 210 70% 65%;
+    --dei-sky-light: 210 80% 92%;
+    --dei-lavender: 265 45% 68%;
+    --dei-lavender-light: 265 50% 93%;
+    --dei-amber: 42 90% 62%;
+    --dei-amber-light: 42 90% 92%;
+    --dei-cream: 36 33% 97%;
+    --dei-rose: 340 60% 65%;
+    --dei-rose-light: 340 70% 93%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 230 25% 18%;
+    --sidebar-primary: 16 80% 68%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 16 90% 95%;
+    --sidebar-accent-foreground: 16 80% 40%;
+    --sidebar-border: 220 20% 92%;
+    --sidebar-ring: 16 80% 68%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .dei-card {
+    @apply rounded-2xl bg-card shadow-sm border border-border/50 transition-all duration-300;
+  }
+
+  .dei-card-hover {
+    @apply dei-card hover:shadow-md hover:-translate-y-0.5;
+  }
+
+  .dei-glow {
+    box-shadow: 0 0 24px -4px hsl(var(--dei-peach) / 0.3),
+                0 4px 16px -2px hsl(var(--dei-peach) / 0.15);
+  }
+
+  .dei-gradient-peach {
+    background: linear-gradient(135deg, hsl(var(--dei-peach-light)), hsl(var(--dei-peach) / 0.2));
+  }
+
+  .dei-gradient-sage {
+    background: linear-gradient(135deg, hsl(var(--dei-sage-light)), hsl(var(--dei-sage) / 0.2));
+  }
+
+  .dei-gradient-sky {
+    background: linear-gradient(135deg, hsl(var(--dei-sky-light)), hsl(var(--dei-sky) / 0.2));
+  }
+
+  .dei-gradient-lavender {
+    background: linear-gradient(135deg, hsl(var(--dei-lavender-light)), hsl(var(--dei-lavender) / 0.2));
+  }
+
+  .dei-gradient-amber {
+    background: linear-gradient(135deg, hsl(var(--dei-amber-light)), hsl(var(--dei-amber) / 0.2));
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
