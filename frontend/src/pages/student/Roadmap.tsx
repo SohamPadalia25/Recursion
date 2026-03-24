@@ -392,7 +392,7 @@ export default function StudentRoadmapPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">AI-Generated Personalized Study Plan</p>
-            <h2 className="mt-1 text-xl font-bold text-foreground md:text-2xl">Weekly plan preview (mock data)</h2>
+            <h2 className="mt-1 text-xl font-bold text-foreground md:text-2xl">Weekly plan preview </h2>
             <p className="mt-1 text-sm text-muted-foreground">Switch on Manual Change to drag and drop cards across days.</p>
           </div>
           <div className="flex flex-wrap gap-2">

@@ -4,6 +4,14 @@ import { studentNav } from "../roleNav";
 import { Button } from "@/components/ui/button";
 import { getAvailableQuizzes, startQuiz, submitQuiz, getQuizAttemptReport, type QuizBank, type StartQuizResponse, type QuizAttemptReport } from "@/lib/quiz-api";
 
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 export default function StudentPracticePage() {
   const [availableQuizzes, setAvailableQuizzes] = useState<QuizBank[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<StartQuizResponse | null>(null);
@@ -249,10 +257,100 @@ export default function StudentPracticePage() {
     };
   }, [lastAttemptId]);
 
+  const downloadReport = () => {
+    if (!report || report.status !== "ready") return;
+
+    const overall = String(report.report?.summary?.overall || "").trim();
+    const accuracy = Math.round(Number(report.report?.metrics?.accuracy || 0) * 100);
+    const avgTime = Math.round(Number(report.report?.metrics?.avgTimePerQuestionSeconds || report.telemetry.avgTimePerQuestionSeconds || 0));
+    const timeEfficiency = Math.round(Number(report.report?.metrics?.timeEfficiency || 0));
+    const consistency = Math.round(Number(report.report?.metrics?.consistency || 0));
+    const nextActions = Array.isArray(report.report?.recommendations?.nextActions)
+      ? report.report.recommendations.nextActions.slice(0, 10).map((item: unknown) => String(item))
+      : [];
+    const dailyPlan = Array.isArray(report.report?.studyPlan?.daily)
+      ? report.report.studyPlan.daily.slice(0, 7)
+      : [];
+
+    const generatedAt = new Date().toLocaleString();
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudyBuddy Quiz Report</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background: #fff7ed; color: #1f2937; }
+    .wrap { max-width: 920px; margin: 24px auto; padding: 0 16px; }
+    .brand { background: linear-gradient(135deg, #f97316, #ea580c); color: white; border-radius: 14px; padding: 18px 20px; }
+    .brand h1 { margin: 0; font-size: 24px; }
+    .brand p { margin: 6px 0 0; opacity: 0.95; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-top: 14px; }
+    .card { background: white; border: 1px solid #fdba74; border-radius: 12px; padding: 12px; }
+    .muted { color: #6b7280; font-size: 13px; }
+    h2 { margin: 20px 0 8px; font-size: 18px; color: #9a3412; }
+    ul { margin: 8px 0 0 18px; padding: 0; }
+    li { margin: 4px 0; }
+    .day { background: white; border: 1px solid #fdba74; border-radius: 10px; padding: 10px; margin-top: 8px; }
+    .foot { margin-top: 16px; font-size: 12px; color: #6b7280; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="brand">
+      <h1>StudyBuddy Performance Report</h1>
+      <p>Generated on ${escapeHtml(generatedAt)} | Attempt ${escapeHtml(lastAttemptId || "N/A")}</p>
+    </section>
+
+    <h2>Overall Summary</h2>
+    <div class="card">
+      <p>${escapeHtml(overall || "No summary available.")}</p>
+    </div>
+
+    <div class="grid">
+      <div class="card"><div class="muted">Accuracy</div><strong>${accuracy}%</strong></div>
+      <div class="card"><div class="muted">Avg Time / Question</div><strong>${avgTime}s</strong></div>
+      <div class="card"><div class="muted">Time Efficiency</div><strong>${timeEfficiency}/100</strong></div>
+      <div class="card"><div class="muted">Consistency</div><strong>${consistency}/100</strong></div>
+    </div>
+
+    <h2>Next Actions</h2>
+    <div class="card">
+      ${nextActions.length ? `<ul>${nextActions.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}</ul>` : "<p class=\"muted\">No suggested actions.</p>"}
+    </div>
+
+    <h2>Study Plan</h2>
+    <div>
+      ${dailyPlan.length ? dailyPlan.map((d: any) => `
+        <div class="day">
+          <strong>Day ${escapeHtml(String(d.day))}: ${escapeHtml(String(d.focus || ""))}</strong>
+          <div class="muted">Estimated: ${escapeHtml(String(d.estimatedMinutes || ""))} mins</div>
+          ${Array.isArray(d.tasks) && d.tasks.length ? `<ul>${d.tasks.slice(0, 8).map((t: any) => `<li>${escapeHtml(String(t))}</li>`).join("")}</ul>` : ""}
+        </div>
+      `).join("") : "<div class=\"card muted\">No study plan generated.</div>"}
+    </div>
+
+    <p class="foot">Powered by StudyBuddy • Keep practicing consistently for measurable gains.</p>
+  </div>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `StudyBuddy-Quiz-Report-${lastAttemptId || "attempt"}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <AppFrame roleLabel="Student" title="Practice Quiz" subtitle="Attempt published quizzes with fullscreen proctoring and activity monitoring." navItems={studentNav}>
       {!activeQuiz ? (
-        <section className="mx-auto max-w-3xl space-y-3">
+        <section className="w-full space-y-3">
           {result ? (
             <div className="rounded-xl border border-border bg-card p-4 text-sm">
               Score: <span className="font-semibold">{result.score}%</span> • {result.isPassed ? "Passed" : "Not passed"} {result.isTerminatedForCheating ? "• Marked for cheating" : ""}
@@ -278,7 +376,12 @@ export default function StudentPracticePage() {
           ) : null}
           {report && report.status === "ready" ? (
             <div className="rounded-xl border border-border bg-card p-4 text-sm space-y-2">
-              <p className="font-semibold">AI Performance Report</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold">AI Performance Report</p>
+                <Button className="rounded-xl bg-orange-500 text-white hover:bg-orange-600" onClick={downloadReport}>
+                  Download StudyBuddy Report
+                </Button>
+              </div>
               <p className="text-muted-foreground whitespace-pre-wrap">{String(report.report?.summary?.overall || "").trim()}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
                 <div>Accuracy: {Math.round(Number(report.report?.metrics?.accuracy || 0) * 100)}%</div>
@@ -318,7 +421,7 @@ export default function StudentPracticePage() {
             <h2 className="text-base font-semibold">Available Quizzes</h2>
             {!availableQuizzes.length ? <p className="text-sm text-muted-foreground">No published quizzes available yet.</p> : null}
             {availableQuizzes.map((quiz) => (
-              <article key={quiz._id} className="flex items-center justify-between rounded-xl border border-border p-3">
+              <article key={quiz._id} className="flex flex-col gap-2 rounded-xl border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium">{quiz.title}</p>
                   <p className="text-xs text-muted-foreground">Max warnings: {quiz.maxWarnings}</p>
@@ -329,7 +432,7 @@ export default function StudentPracticePage() {
           </div>
         </section>
       ) : (
-        <section className="mx-auto max-w-4xl space-y-4">
+        <section className="w-full space-y-4">
           <div className="rounded-xl border border-border bg-card p-4 text-sm">
             <p className="font-semibold">{activeQuiz.title}</p>
             <p className="text-muted-foreground">Fullscreen is required. Warnings: {warningCount}/{activeQuiz.maxWarnings}</p>
