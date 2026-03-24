@@ -5,6 +5,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { QuizBank } from "../models/quizBank.model.js";
 import { QuizAttempt } from "../models/quizattempt.model.js";
+import { QuizAttemptReport } from "../models/quizAttemptReport.model.js";
 import { Lesson } from "../models/lesson.model.js";
 import { chatWithGroq } from "../services/groq.service.js";
 
@@ -12,6 +13,252 @@ const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
 
 const QUESTION_TYPES = ["mcq", "brief", "descriptive"];
+
+const safeJsonParse = (raw) => {
+  try {
+    return JSON.parse(raw || "{}");
+  } catch {
+    const m = String(raw || "").match(/\{[\s\S]*\}/);
+    return m ? JSON.parse(m[0]) : {};
+  }
+};
+
+const buildAttemptTelemetry = (attempt) => {
+  const assigned = Array.isArray(attempt.assignedQuestions) ? attempt.assignedQuestions : [];
+  const answers = Array.isArray(attempt.answers) ? attempt.answers : [];
+  const answerMap = new Map(answers.map((a) => [String(a.questionId), a]));
+
+  const questionRows = assigned.map((q, idx) => {
+    const a = answerMap.get(String(q.questionId));
+    const spent = Math.max(0, Number(a?.timeSpentSeconds || 0));
+    const isAnswered = a
+      ? q.type === "mcq"
+        ? a.selectedIndex !== null && a.selectedIndex !== undefined
+        : Boolean(String(a.answerText || "").trim())
+      : false;
+
+    return {
+      index: idx + 1,
+      questionId: String(q.questionId),
+      type: q.type,
+      text: q.text,
+      options: Array.isArray(q.options) ? q.options : [],
+      marks: Number(q.marks || 1),
+      isAnswered,
+      selectedIndex: a?.selectedIndex ?? null,
+      answerText: String(a?.answerText || ""),
+      isCorrect: Boolean(a?.isCorrect),
+      timeSpentSeconds: spent,
+    };
+  });
+
+  const totalQuestions = questionRows.length || 1;
+  const correctCount = questionRows.filter((q) => q.isCorrect).length;
+  const incorrectCount = questionRows.filter((q) => q.isAnswered && !q.isCorrect).length;
+  const unansweredCount = questionRows.filter((q) => !q.isAnswered).length;
+  const totalTime = Math.max(0, Number(attempt.timeTaken || 0));
+  const avgTime = Math.round(
+    questionRows.reduce((s, q) => s + Number(q.timeSpentSeconds || 0), 0) / totalQuestions
+  );
+
+  const times = questionRows.map((q) => Number(q.timeSpentSeconds || 0)).sort((a, b) => a - b);
+  const medianTime = times.length ? times[Math.floor(times.length / 2)] : 0;
+
+  const slowAndWrong = questionRows
+    .filter(
+      (q) =>
+        q.isAnswered &&
+        !q.isCorrect &&
+        Number(q.timeSpentSeconds || 0) >= Math.max(15, Math.round(medianTime * 1.6))
+    )
+    .sort((a, b) => Number(b.timeSpentSeconds || 0) - Number(a.timeSpentSeconds || 0))
+    .slice(0, 6)
+    .map((q) => ({
+      index: q.index,
+      text: q.text,
+      timeSpentSeconds: q.timeSpentSeconds,
+    }));
+
+  return {
+    attemptId: String(attempt._id),
+    quizTitle: attempt.quizBank?.title || "",
+    courseTitle: attempt.course?.title || "",
+    lessonTitle: attempt.lesson?.title || "",
+    score: Number(attempt.score || 0),
+    correctCount,
+    incorrectCount,
+    unansweredCount,
+    totalQuestions,
+    timeTakenSeconds: totalTime,
+    avgTimePerQuestionSeconds: avgTime,
+    warningCount: Number(attempt.warningCount || 0),
+    slowAndWrong,
+    questions: questionRows.map((q) => ({
+      index: q.index,
+      type: q.type,
+      text: q.text,
+      isCorrect: q.isCorrect,
+      timeSpentSeconds: q.timeSpentSeconds,
+    })),
+  };
+};
+
+const generateAttemptReport = async (attempt) => {
+  const telemetry = buildAttemptTelemetry(attempt);
+
+  const prompt = `You are an expert learning analyst. Based on the quiz telemetry below, return ONLY valid JSON.
+
+Schema:
+{
+  "summary": {
+    "overall": "3-6 sentences",
+    "verdict": "relearn" | "review" | "advance",
+    "confidence": 0-100
+  },
+  "metrics": {
+    "score": 0-100,
+    "accuracy": 0-1,
+    "correctCount": number,
+    "incorrectCount": number,
+    "unansweredCount": number,
+    "timeTakenSeconds": number,
+    "avgTimePerQuestionSeconds": number,
+    "timeEfficiency": 0-100,
+    "consistency": 0-100
+  },
+  "diagnostics": {
+    "likelyWeakTopics": [{"topic":"string","reason":"string","priority":1|2|3}],
+    "carelessMistakes": [{"questionIndex": number, "why":"string"}],
+    "slowAndWrong": [{"questionIndex": number, "why":"string"}],
+    "strengthSignals": ["string", "string"]
+  },
+  "recommendations": {
+    "shouldRelearn": boolean,
+    "relearnTopics": ["string"],
+    "nextActions": ["string", "string", "string"]
+  },
+  "studyPlan": {
+    "days": number,
+    "daily": [
+      {
+        "day": 1,
+        "focus": "string",
+        "tasks": ["string"],
+        "estimatedMinutes": number
+      }
+    ]
+  }
+}
+
+Rules:
+- Use the telemetry to justify your conclusions.
+- If accuracy is low OR slow-and-wrong is frequent, lean toward relearn/review.
+- Keep the plan practical (3-7 days). Include quizzes/flashcards as tasks.
+
+Telemetry:
+${JSON.stringify(telemetry)}`;
+
+  const model = process.env.GROQ_QUIZ_REPORT_MODEL || process.env.GROQ_CHAT_MODEL;
+  const raw = await chatWithGroq(
+    [
+      { role: "system", content: "Return strictly valid JSON only." },
+      { role: "user", content: prompt },
+    ],
+    model,
+    true
+  );
+
+  const parsed = safeJsonParse(raw);
+  return { telemetry, report: parsed };
+};
+
+const queueAttemptReportGeneration = async (attemptId, studentId) => {
+  const existing = await QuizAttemptReport.findOne({ attempt: attemptId, student: studentId });
+  if (existing?.status === "ready") return;
+
+  await QuizAttemptReport.findOneAndUpdate(
+    { attempt: attemptId, student: studentId },
+    { $setOnInsert: { status: "pending" }, $set: { error: "" } },
+    { upsert: true, new: true }
+  );
+
+  setImmediate(async () => {
+    try {
+      const attempt = await QuizAttempt.findOne({ _id: attemptId, student: studentId })
+        .populate("course", "title level category")
+        .populate("lesson", "title")
+        .populate("quizBank", "title");
+
+      if (!attempt) throw new Error("Attempt not found for report generation");
+      if (attempt.isTerminatedForCheating) {
+        await QuizAttemptReport.findOneAndUpdate(
+          { attempt: attemptId, student: studentId },
+          {
+            status: "ready",
+            telemetry: buildAttemptTelemetry(attempt),
+            report: {
+              summary: {
+                overall:
+                  "This attempt was terminated due to cheating warnings, so a full learning analysis is limited.",
+                verdict: "review",
+                confidence: 35,
+              },
+              metrics: {
+                score: Number(attempt.score || 0),
+                accuracy: 0,
+                correctCount: 0,
+                incorrectCount: 0,
+                unansweredCount: 0,
+                timeTakenSeconds: Number(attempt.timeTaken || 0),
+                avgTimePerQuestionSeconds: 0,
+                timeEfficiency: 0,
+                consistency: 0,
+              },
+              diagnostics: {
+                likelyWeakTopics: [],
+                carelessMistakes: [],
+                slowAndWrong: [],
+                strengthSignals: [],
+              },
+              recommendations: {
+                shouldRelearn: true,
+                relearnTopics: [],
+                nextActions: [
+                  "Re-attempt the quiz honestly in full-screen mode.",
+                  "Review the lesson content and take notes before retrying.",
+                ],
+              },
+              studyPlan: { days: 3, daily: [] },
+            },
+            generatedAt: new Date(),
+            error: "",
+          },
+          { new: true }
+        );
+        return;
+      }
+
+      const { telemetry, report } = await generateAttemptReport(attempt);
+      await QuizAttemptReport.findOneAndUpdate(
+        { attempt: attemptId, student: studentId },
+        {
+          status: "ready",
+          telemetry,
+          report,
+          generatedAt: new Date(),
+          error: "",
+        },
+        { new: true }
+      );
+    } catch (err) {
+      await QuizAttemptReport.findOneAndUpdate(
+        { attempt: attemptId, student: studentId },
+        { status: "failed", error: err instanceof Error ? err.message : String(err || "Report failed") },
+        { new: true }
+      );
+    }
+  });
+};
 
 const clampDistribution = (distribution = {}) => {
   const normalized = {
@@ -343,6 +590,7 @@ const submitQuizAttemptWithLogs = asyncHandler(async (req, res) => {
     const questionId = String(answer.questionId);
     const question = questionMap.get(questionId);
     const answerText = String(answer.answerText || "").trim();
+    const timeSpentSeconds = Math.max(0, Math.round(Number(answer.timeSpentSeconds || 0)));
     let isCorrect = false;
 
     if (question) {
@@ -358,6 +606,7 @@ const submitQuizAttemptWithLogs = asyncHandler(async (req, res) => {
       selectedIndex: answer.selectedIndex ?? null,
       answerText,
       isCorrect,
+      timeSpentSeconds,
     };
   });
 
@@ -381,10 +630,14 @@ const submitQuizAttemptWithLogs = asyncHandler(async (req, res) => {
   attempt.submittedAt = new Date();
   await attempt.save();
 
+  // Auto-generate report in background (do not await)
+  queueAttemptReportGeneration(attempt._id, req.user._id).catch(() => {});
+
   return res.status(200).json(
     new ApiResponse(
       200,
       {
+        attemptId: attempt._id,
         score: attempt.score,
         isPassed: attempt.isPassed,
         isTerminatedForCheating: terminated,
@@ -392,6 +645,55 @@ const submitQuizAttemptWithLogs = asyncHandler(async (req, res) => {
         maxWarnings: quizBank.maxWarnings,
       },
       terminated ? "Attempt ended due to cheating warnings" : "Quiz submitted"
+    )
+  );
+});
+
+const getQuizAttemptReport = asyncHandler(async (req, res) => {
+  const { attemptId } = req.params;
+  if (!attemptId) throw new ApiError(400, "attemptId is required");
+
+  const attemptExists = await QuizAttempt.exists({ _id: attemptId, student: req.user._id });
+  if (!attemptExists) throw new ApiError(404, "Attempt not found");
+
+  const doc = await QuizAttemptReport.findOne({ attempt: attemptId, student: req.user._id }).select(
+    "attempt status telemetry report error generatedAt"
+  );
+
+  if (!doc) {
+    await queueAttemptReportGeneration(attemptId, req.user._id);
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          attemptId: String(attemptId),
+          status: "pending",
+          telemetry: null,
+          report: null,
+          error: "",
+        },
+        "Report queued"
+      )
+    );
+  }
+
+  if (doc.status === "failed") {
+    // allow re-queue on fetch
+    await queueAttemptReportGeneration(attemptId, req.user._id);
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        attemptId: String(doc.attempt),
+        status: doc.status,
+        telemetry: doc.telemetry || null,
+        report: doc.report || null,
+        error: String(doc.error || ""),
+        generatedAt: doc.generatedAt || null,
+      },
+      doc.status === "ready" ? "Report ready" : "Report pending"
     )
   );
 });
@@ -404,4 +706,5 @@ export {
   listPublishedQuizBanks,
   startQuizAttempt,
   submitQuizAttemptWithLogs,
+  getQuizAttemptReport,
 };

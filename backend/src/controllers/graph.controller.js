@@ -1,4 +1,9 @@
 import { createNeo4jSession, neo4jDriver } from "../config/neo4j.js";
+import { Enrollment } from "../models/enrollment.model.js";
+import { Course } from "../models/course.model.js";
+import { Module } from "../models/module.model.js";
+import { Lesson } from "../models/lesson.model.js";
+import { Progress } from "../models/progress.model.js";
 
 const graphQuery = `
 MATCH (root:Category {name: "Learning Graph", source: "mongo-sync"})
@@ -340,5 +345,254 @@ export async function getNeo4jInsights(req, res) {
   } catch (error) {
     console.error("Failed to fetch Neo4j insights:", error);
     return res.status(500).json({ message: "Failed to fetch Neo4j insights." });
+  }
+}
+
+export async function getStudentProgressGraph(req, res) {
+  try {
+    const studentId = req.user?._id || req.query.studentId;
+
+    if (!studentId) {
+      return res.status(400).json({ message: "Student ID is required" });
+    }
+
+    // Get all enrolled courses for the student
+    const enrollments = await Enrollment.find({ student: studentId })
+      .lean()
+      .populate("course", "_id title category");
+
+    if (!enrollments.length) {
+      return res.status(200).json({
+        nodes: [],
+        links: [],
+        stats: {
+          totalCourses: 0,
+          completedCourses: 0,
+          inProgressCourses: 0,
+        },
+      });
+    }
+
+    const courseIds = enrollments.map((e) => e.course._id);
+
+    // Get all modules for the enrolled courses
+    const modules = await Module.find({ course: { $in: courseIds } })
+      .lean()
+      .select("_id title course order");
+
+    const moduleIds = modules.map((m) => m._id);
+
+    // Get all lessons for these modules
+    const lessons = await Lesson.find({ module: { $in: moduleIds } })
+      .lean()
+      .select("_id title module course order");
+
+    const lessonIds = lessons.map((l) => l._id);
+
+    // Get all progress records for these lessons
+    const progressRecords = await Progress.find({
+      student: studentId,
+      lesson: { $in: lessonIds },
+    })
+      .lean()
+      .select("lesson isCompleted");
+
+    // Create lookup maps
+    const progressMap = new Map();
+    progressRecords.forEach((p) => {
+      progressMap.set(p.lesson.toString(), p.isCompleted);
+    });
+
+    const modulesByLessonId = new Map();
+    const lessonsByModuleId = new Map();
+    const modulesByCourseId = new Map();
+
+    modules.forEach((m) => {
+      if (!modulesByCourseId.has(m.course.toString())) {
+        modulesByCourseId.set(m.course.toString(), []);
+      }
+      modulesByCourseId.get(m.course.toString()).push(m);
+    });
+
+    lessons.forEach((l) => {
+      modulesByLessonId.set(l._id.toString(), l.module.toString());
+      if (!lessonsByModuleId.has(l.module.toString())) {
+        lessonsByModuleId.set(l.module.toString(), []);
+      }
+      lessonsByModuleId.get(l.module.toString()).push(l);
+    });
+
+    // Build graph nodes and links
+    const nodes = [];
+    const links = [];
+    const nodeIds = new Set();
+
+    let completedCourses = 0;
+    let inProgressCourses = 0;
+
+    enrollments.forEach((enrollment) => {
+      const courseId = enrollment.course._id.toString();
+      const courseName = enrollment.course.title;
+      const courseCategory = enrollment.course.category;
+
+      // Get modules for this course
+      const courseModules = modulesByCourseId.get(courseId) || [];
+      const sortedModules = courseModules.sort((a, b) => a.order - b.order);
+
+      if (sortedModules.length === 0) {
+        // No modules, just add course node
+        nodes.push({
+          id: courseId,
+          label: courseName,
+          type: "course",
+          color: "#e5e7eb", // gray - not started
+          completionStatus: "not-started",
+          completionPercentage: 0,
+          category: courseCategory,
+        });
+        nodeIds.add(courseId);
+        return;
+      }
+
+      // Calculate course completion
+      let totalLessons = 0;
+      let completedLessons = 0;
+
+      const moduleCompletions = sortedModules.map((module) => {
+        const moduleLessons = lessonsByModuleId.get(module._id.toString()) || [];
+        const moduleCompletedLessons = moduleLessons.filter((lesson) =>
+          progressMap.get(lesson._id.toString())
+        ).length;
+
+        totalLessons += moduleLessons.length;
+        completedLessons += moduleCompletedLessons;
+
+        return {
+          moduleId: module._id.toString(),
+          moduleName: module.title,
+          order: module.order,
+          totalLessons: moduleLessons.length,
+          completedLessons: moduleCompletedLessons,
+          completionPercentage:
+            moduleLessons.length > 0
+              ? Math.round((moduleCompletedLessons / moduleLessons.length) * 100)
+              : 0,
+        };
+      });
+
+      const courseCompletionPercentage =
+        totalLessons > 0
+          ? Math.round((completedLessons / totalLessons) * 100)
+          : 0;
+
+      // Determine course completion status
+      let courseColor = "#e5e7eb"; // gray - not started
+      let courseStatus = "not-started";
+
+      if (courseCompletionPercentage === 100) {
+        courseColor = "#22c55e"; // green - completed
+        courseStatus = "completed";
+        completedCourses++;
+      } else if (courseCompletionPercentage > 0) {
+        courseColor = "#eab308"; // yellow - in progress
+        courseStatus = "in-progress";
+        inProgressCourses++;
+      } else {
+        inProgressCourses++;
+      }
+
+      // Add course node
+      nodes.push({
+        id: courseId,
+        label: courseName,
+        type: "course",
+        color: courseColor,
+        completionStatus: courseStatus,
+        completionPercentage: courseCompletionPercentage,
+        category: courseCategory,
+      });
+      nodeIds.add(courseId);
+
+      // Add module nodes and course->module links
+      moduleCompletions.forEach((moduleData) => {
+        const moduleNodeId = moduleData.moduleId;
+
+        // Determine module color
+        let moduleColor = "#e5e7eb"; // gray
+        let moduleStatus = "not-started";
+
+        if (moduleData.completionPercentage === 100) {
+          moduleColor = "#22c55e"; // green
+          moduleStatus = "completed";
+        } else if (moduleData.completionPercentage > 0) {
+          moduleColor = "#eab308"; // yellow
+          moduleStatus = "in-progress";
+        }
+
+        // Add module node
+        nodes.push({
+          id: moduleNodeId,
+          label: moduleData.moduleName,
+          type: "module",
+          color: moduleColor,
+          completionStatus: moduleStatus,
+          completionPercentage: moduleData.completionPercentage,
+          courseId: courseId,
+        });
+        nodeIds.add(moduleNodeId);
+
+        // Add course->module link
+        links.push({
+          source: courseId,
+          target: moduleNodeId,
+          type: "HAS_MODULE",
+        });
+
+        // Add lesson nodes and module->lesson links
+        const moduleLessons = lessonsByModuleId.get(moduleData.moduleId) || [];
+        moduleLessons.sort((a, b) => a.order - b.order).forEach((lesson) => {
+          const lessonNodeId = lesson._id.toString();
+          const isCompleted = progressMap.get(lessonNodeId);
+
+          const lessonColor = isCompleted ? "#22c55e" : "#e5e7eb";
+          const lessonStatus = isCompleted ? "completed" : "not-started";
+
+          nodes.push({
+            id: lessonNodeId,
+            label: lesson.title,
+            type: "lesson",
+            color: lessonColor,
+            completionStatus: lessonStatus,
+            completionPercentage: isCompleted ? 100 : 0,
+            moduleId: moduleData.moduleId,
+          });
+          nodeIds.add(lessonNodeId);
+
+          // Add module->lesson link
+          links.push({
+            source: moduleData.moduleId,
+            target: lessonNodeId,
+            type: "HAS_LESSON",
+          });
+        });
+      });
+    });
+
+    return res.status(200).json({
+      nodes,
+      links,
+      stats: {
+        totalCourses: enrollments.length,
+        completedCourses,
+        inProgressCourses,
+        totalNodes: nodeIds.size,
+      },
+    });
+  } catch (error) {
+    console.error("Failed to fetch student progress graph:", error);
+    return res.status(500).json({
+      message: "Failed to fetch student progress graph.",
+      error: error.message,
+    });
   }
 }

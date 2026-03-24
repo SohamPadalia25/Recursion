@@ -14,6 +14,13 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [activeMascot, setActiveMascot] = useState<"default" | "username" | "password">("default");
+
+    const mascotSrc = activeMascot === "password"
+        ? "/mascot_password.mp4"
+        : activeMascot === "username"
+            ? "/mascot_username.mp4"
+            : "/mascot.mp4";
 
     useEffect(() => {
         if (!user) return;
@@ -47,6 +54,17 @@ export default function LoginPage() {
                 <div className="hidden bg-gradient-to-br from-dei-peach/20 via-dei-sky/10 to-dei-lavender/20 p-8 lg:block">
                     <h1 className="text-3xl font-extrabold text-foreground">Welcome Back</h1>
                     <p className="mt-2 text-sm text-muted-foreground">Continue your AI-powered learning flow.</p>
+                    <div className="mt-6 overflow-hidden rounded-2xl border border-border/70 bg-background/70 p-3">
+                        <video
+                            key={mascotSrc}
+                            src={mascotSrc}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="h-full w-full rounded-xl object-cover"
+                        />
+                    </div>
                 </div>
 
                 <motion.form
@@ -63,7 +81,11 @@ export default function LoginPage() {
                         <label className="text-sm font-medium">Username </label>
                         <input
                             value={username}
-                            onChange={(e) => setUsername(e.target.value)}
+                            onFocus={() => setActiveMascot("username")}
+                            onChange={(e) => {
+                                setActiveMascot("username");
+                                setUsername(e.target.value);
+                            }}
                             className="h-11 w-full rounded-xl bg-muted/50 px-3 outline-none ring-primary/30 transition-all focus:ring-2"
                         />
                     </div>
@@ -73,7 +95,11 @@ export default function LoginPage() {
                         <input
                             type="email"
                             value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            onFocus={() => setActiveMascot("username")}
+                            onChange={(e) => {
+                                setActiveMascot("username");
+                                setEmail(e.target.value);
+                            }}
                             className="h-11 w-full rounded-xl bg-muted/50 px-3 outline-none ring-primary/30 transition-all focus:ring-2"
                         />
                     </div>
@@ -84,7 +110,11 @@ export default function LoginPage() {
                             <input
                                 type={showPassword ? "text" : "password"}
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onFocus={() => setActiveMascot("password")}
+                                onChange={(e) => {
+                                    setActiveMascot("password");
+                                    setPassword(e.target.value);
+                                }}
                                 required
                                 className="h-11 w-full rounded-xl bg-muted/50 px-3 pr-12 outline-none ring-primary/30 transition-all focus:ring-2"
                             />

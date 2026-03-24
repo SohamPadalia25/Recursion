@@ -11,6 +11,7 @@ import { Notification } from "../models/notification.model.js";
 import { Lesson } from "../models/lesson.model.js";
 import { runStudyPlanAgent } from "./studyPlanAgent.service.js";
 import { runBadgeAgent } from "./badgeAgent.service.js";
+import { buildAdaptiveLearningSnapshot } from "./adaptiveLearning.service.js";
 
 // ─────────────────────────────────────────────
 // AGENT 1: Context Loader
@@ -88,25 +89,6 @@ const checkDueFlashcards = async (studentId, courseId) => {
     .select("question answer easeFactor interval");
 
   return dueCards;
-};
-
-// ─────────────────────────────────────────────
-// AGENT 4: Performance Analyzer
-// Decides what difficulty to set for the next quiz
-// ─────────────────────────────────────────────
-const analyzePerformance = (recentAttempts) => {
-  if (recentAttempts.length === 0) return { difficulty: "medium", reason: "no attempts yet" };
-
-  const last3 = recentAttempts.slice(0, 3);
-  const avgLast3 = last3.reduce((s, a) => s + a.score, 0) / last3.length;
-
-  if (avgLast3 >= 85) {
-    return { difficulty: "hard", reason: `avg score ${Math.round(avgLast3)}% — escalating` };
-  } else if (avgLast3 < 50) {
-    return { difficulty: "easy", reason: `avg score ${Math.round(avgLast3)}% — needs support` };
-  } else {
-    return { difficulty: "medium", reason: `avg score ${Math.round(avgLast3)}% — on track` };
-  }
 };
 
 // ─────────────────────────────────────────────
@@ -197,7 +179,17 @@ const runDashboardAgents = async (studentId, courseId) => {
     checkScheduleHealth(studentId, courseId, context.studyPlan),
   ]);
 
-  const performanceAnalysis = analyzePerformance(context.recentAttempts);
+  const adaptiveLearning = await buildAdaptiveLearningSnapshot(studentId, courseId, {
+    recentAttempts: context.recentAttempts,
+    streak: context.streak,
+    avgScore: context.avgScore,
+    completionPercentage: context.completionPercentage,
+  });
+
+  const performanceAnalysis = {
+    difficulty: adaptiveLearning.quizDifficulty.level,
+    reason: adaptiveLearning.quizDifficulty.reason,
+  };
 
   // Check for badges earned (runs async, don't await — non-blocking)
   runBadgeAgent(studentId, courseId, context).catch(console.error);
@@ -225,7 +217,8 @@ const runDashboardAgents = async (studentId, courseId) => {
     dueFlashcards,
     todayTasks: getTodayTasks(context.studyPlan),
     scheduleHealth,
-    performanceAnalysis, // used by quiz agent to pick difficulty
+    performanceAnalysis, // rule-based; quiz also uses engagement via adaptiveLearning
+    adaptiveLearning,
     newNotifications: notifications,
     recentAttempts: context.recentAttempts.slice(0, 5),
   };
@@ -265,4 +258,4 @@ const getTodayTasks = (studyPlan) => {
   );
 };
 
-export { runDashboardAgents, analyzePerformance };
+export { runDashboardAgents };

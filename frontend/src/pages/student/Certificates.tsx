@@ -41,6 +41,12 @@ export default function StudentCertificatesPage() {
     }, [courseId, user?.email]);
 
     const isActionableCourse = useMemo(() => courseId.trim().length > 0, [courseId]);
+    const hasCertificate = Boolean(existingHash);
+    const statusTone = eligible
+        ? "border-emerald-300/60 bg-emerald-500/10 text-emerald-700"
+        : hasCertificate
+            ? "border-sky-300/60 bg-sky-500/10 text-sky-700"
+            : "border-border bg-muted/30 text-muted-foreground";
 
     const onCheck = async () => {
         if (!isActionableCourse) {
@@ -93,41 +99,69 @@ export default function StudentCertificatesPage() {
             subtitle="Issue verifiable certificates only after true completion checks."
             navItems={studentNav}
         >
-            <section className="mx-auto max-w-4xl dei-card p-5 md:p-8">
-                <div className="rounded-2xl border border-border bg-gradient-to-br from-dei-sky/10 to-dei-peach/10 p-6 md:p-8">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Blockchain-Style Certificate</p>
-                    <h2 className="mt-2 text-2xl font-bold text-foreground">Issue certificate for a course</h2>
-
-                    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                        <input
-                            value={courseId}
-                            onChange={(e) => setCourseId(e.target.value)}
-                            placeholder="Enter course id"
-                            className="h-11 flex-1 rounded-xl border border-border bg-background/70 px-3 text-sm outline-none ring-primary/30 focus:ring-2"
-                        />
-                        <Button variant="outline" className="h-11 rounded-xl" onClick={onCheck} disabled={checking}>
-                            {checking ? "Checking..." : "Check Eligibility"}
-                        </Button>
+            <section className="w-full p-2 md:p-3">
+                <div className="space-y-4 rounded-3xl border-2 border-orange-300 bg-card p-3 shadow-[0_8px_24px_rgba(249,115,22,0.08)] md:p-4">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="rounded-2xl border border-border bg-card p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Course ID Status</p>
+                            <p className="mt-2 text-lg font-semibold text-foreground">
+                                {isActionableCourse ? "Provided" : "Not provided"}
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-border bg-card p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Eligibility</p>
+                            <p className="mt-2 text-lg font-semibold text-foreground">
+                                {eligible ? "Eligible" : "Pending check"}
+                            </p>
+                        </div>
+                        <div className="rounded-2xl border border-border bg-card p-4">
+                            <p className="text-xs uppercase tracking-wide text-muted-foreground">Certificate</p>
+                            <p className="mt-2 text-lg font-semibold text-foreground">
+                                {hasCertificate ? "Already issued" : "Not issued"}
+                            </p>
+                        </div>
                     </div>
 
-                    <p className="mt-4 text-sm text-muted-foreground">{statusMessage}</p>
+                    <div className="rounded-2xl border-2 border-orange-400 bg-white p-4 shadow-[0_8px_24px_rgba(249,115,22,0.15)] md:p-6">
+                        <p className="text-xs uppercase tracking-wider text-muted-foreground">Blockchain-Style Certificate</p>
+                        <h2 className="mt-2 text-2xl font-bold text-foreground">Issue certificate for a course</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">Check completion first, then issue only if criteria are met.</p>
 
-                    <div className="mt-6 flex flex-wrap gap-3">
-                        {eligible && (
-                            <Button className="rounded-xl" onClick={onIssue} disabled={issuing}>
-                                {issuing ? "Issuing..." : "Get Certificate"}
-                            </Button>
-                        )}
+                        <div className="mt-5 rounded-xl border border-border bg-background/70 p-3 md:p-4">
+                            <div className="flex flex-col gap-3 sm:flex-row">
+                                <input
+                                    value={courseId}
+                                    onChange={(e) => setCourseId(e.target.value)}
+                                    placeholder="Enter course id"
+                                    className="h-11 flex-1 rounded-xl border border-border bg-background px-3 text-sm outline-none ring-primary/30 focus:ring-2"
+                                />
+                                <Button variant="outline" className="h-11 rounded-xl" onClick={onCheck} disabled={checking}>
+                                    {checking ? "Checking..." : "Check Eligibility"}
+                                </Button>
+                            </div>
+                        </div>
 
-                        {existingHash && (
-                            <Button
-                                variant="outline"
-                                className="rounded-xl"
-                                onClick={() => navigate(`/student/certificate/${existingHash}`)}
-                            >
-                                Open Existing Certificate
-                            </Button>
-                        )}
+                        <div className={`mt-4 rounded-xl border p-3 text-sm ${statusTone}`}>
+                            {statusMessage}
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap gap-3">
+                            {eligible && (
+                                <Button className="rounded-xl" onClick={onIssue} disabled={issuing}>
+                                    {issuing ? "Issuing..." : "Get Certificate"}
+                                </Button>
+                            )}
+
+                            {existingHash && (
+                                <Button
+                                    variant="outline"
+                                    className="rounded-xl"
+                                    onClick={() => navigate(`/student/certificate/${existingHash}`)}
+                                >
+                                    Open Existing Certificate
+                                </Button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </section>

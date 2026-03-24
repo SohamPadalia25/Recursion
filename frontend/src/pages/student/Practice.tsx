@@ -2,20 +2,26 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AppFrame } from "@/components/platform/AppFrame";
 import { studentNav } from "../roleNav";
 import { Button } from "@/components/ui/button";
-import { getAvailableQuizzes, startQuiz, submitQuiz, type QuizBank, type StartQuizResponse } from "@/lib/quiz-api";
+import { getAvailableQuizzes, startQuiz, submitQuiz, getQuizAttemptReport, type QuizBank, type StartQuizResponse, type QuizAttemptReport } from "@/lib/quiz-api";
 
 export default function StudentPracticePage() {
   const [availableQuizzes, setAvailableQuizzes] = useState<QuizBank[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<StartQuizResponse | null>(null);
   const [answers, setAnswers] = useState<Record<string, { selectedIndex?: number; answerText?: string }>>({});
+  const [timeByQuestion, setTimeByQuestion] = useState<Record<string, number>>({});
   const [activityLogs, setActivityLogs] = useState<Array<{ eventType: string; timestamp: string; meta?: string }>>([]);
   const [warningCount, setWarningCount] = useState(0);
   const [result, setResult] = useState<{ score: number; isPassed: boolean; isTerminatedForCheating: boolean } | null>(null);
+  const [lastAttemptId, setLastAttemptId] = useState<string>("");
+  const [report, setReport] = useState<QuizAttemptReport | null>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
   const [error, setError] = useState("");
   const [warningMessage, setWarningMessage] = useState("");
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const startTimeRef = useRef<number>(0);
+  const questionStartRef = useRef<number>(0);
+  const currentQuestionIdRef = useRef<string>("");
 
   const pushActivity = (eventType: string, meta = "") => {
     setActivityLogs((prev) => [...prev, { eventType, timestamp: new Date().toISOString(), meta }]);
@@ -85,15 +91,20 @@ export default function StudentPracticePage() {
     setError("");
     setWarningMessage("");
     setResult(null);
+    setReport(null);
+    setLastAttemptId("");
     setWarningCount(0);
     setActivityLogs([]);
     setAnswers({});
+    setTimeByQuestion({});
     setCurrentQuestionIndex(0);
     setIsSubmitting(false);
     try {
       const data = await startQuiz(quizId);
       setActiveQuiz(data);
       startTimeRef.current = Date.now();
+      questionStartRef.current = Date.now();
+      currentQuestionIdRef.current = data.questions?.[0]?.questionId || "";
       await document.documentElement.requestFullscreen();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to start quiz");
@@ -104,6 +115,17 @@ export default function StudentPracticePage() {
   const answeredCount = useMemo(() => Object.keys(answers).length, [answers]);
   const currentQuestion = questions[currentQuestionIndex] || null;
   const isLastQuestion = questions.length > 0 && currentQuestionIndex === questions.length - 1;
+
+  const commitTimeForCurrent = () => {
+    const qid = currentQuestionIdRef.current;
+    if (!qid) return;
+    const started = questionStartRef.current;
+    if (!started) return;
+    const elapsed = Math.max(0, Math.round((Date.now() - started) / 1000));
+    if (elapsed <= 0) return;
+    setTimeByQuestion((prev) => ({ ...prev, [qid]: (prev[qid] || 0) + elapsed }));
+    questionStartRef.current = Date.now();
+  };
 
   const clearQuizState = async () => {
     setActiveQuiz(null);
@@ -117,10 +139,12 @@ export default function StudentPracticePage() {
     if (!activeQuiz || isSubmitting) return;
     setIsSubmitting(true);
     try {
+      commitTimeForCurrent();
       const formattedAnswers = questions.map((q) => ({
         questionId: q.questionId,
         selectedIndex: answers[q.questionId]?.selectedIndex,
         answerText: answers[q.questionId]?.answerText || "",
+        timeSpentSeconds: Math.max(0, Math.round(Number(timeByQuestion[q.questionId] || 0))),
       }));
       const data = await submitQuiz(activeQuiz.quizId, {
         attemptId: activeQuiz.attemptId,
@@ -129,7 +153,8 @@ export default function StudentPracticePage() {
         answers: formattedAnswers,
         activityLogs,
       });
-      setResult(data);
+      setResult({ score: data.score, isPassed: data.isPassed, isTerminatedForCheating: data.isTerminatedForCheating });
+      setLastAttemptId(data.attemptId);
       if (forcedReason) {
         setError(`Quiz was auto-submitted: ${forcedReason}`);
       }
@@ -156,53 +181,145 @@ export default function StudentPracticePage() {
 
   const goNextQuestion = () => {
     if (!activeQuiz) return;
+    commitTimeForCurrent();
     setCurrentQuestionIndex((prev) => Math.min(prev + 1, activeQuiz.questions.length - 1));
   };
+
+  useEffect(() => {
+    if (!activeQuiz) return;
+    const qid = activeQuiz.questions?.[currentQuestionIndex]?.questionId || "";
+    currentQuestionIdRef.current = qid;
+    questionStartRef.current = Date.now();
+  }, [activeQuiz, currentQuestionIndex]);
+
+  const loadReport = async () => {
+    if (!lastAttemptId || loadingReport) return;
+    setLoadingReport(true);
+    setError("");
+    try {
+      const data = await getQuizAttemptReport(lastAttemptId);
+      setReport(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load report");
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!lastAttemptId) return;
+    let cancelled = false;
+    let tries = 0;
+    const maxTries = 24; // ~48s at 2s interval
+
+    const tick = async () => {
+      if (cancelled) return;
+      tries += 1;
+      try {
+        const data = await getQuizAttemptReport(lastAttemptId);
+        if (cancelled) return;
+        setReport(data);
+        if (data.status === "ready") {
+          setLoadingReport(false);
+          return;
+        }
+        if (data.status === "failed") {
+          setLoadingReport(false);
+          return;
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Unable to load report");
+        setLoadingReport(false);
+        return;
+      }
+
+      if (tries >= maxTries) {
+        setLoadingReport(false);
+        return;
+      }
+
+      window.setTimeout(tick, 2000);
+    };
+
+    setLoadingReport(true);
+    void tick();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lastAttemptId]);
 
   return (
     <AppFrame roleLabel="Student" title="Practice Quiz" subtitle="Attempt published quizzes with fullscreen proctoring and activity monitoring." navItems={studentNav}>
       {!activeQuiz ? (
-        <section className="mx-auto max-w-3xl space-y-3">
+        <section className="w-full space-y-4">
           {result ? (
-            <div className="rounded-xl border border-border bg-card p-4 text-sm">
+            <div className="rounded-2xl border border-border bg-card p-4 text-sm shadow-sm">
               Score: <span className="font-semibold">{result.score}%</span> • {result.isPassed ? "Passed" : "Not passed"} {result.isTerminatedForCheating ? "• Marked for cheating" : ""}
+              {lastAttemptId ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button className="rounded-xl" onClick={() => void loadReport()} disabled={loadingReport}>
+                    {loadingReport ? "Building report..." : "Refresh report"}
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : null}
           {error ? <p className="rounded-lg bg-destructive/10 p-2 text-sm text-destructive">{error}</p> : null}
-          <div className="dei-card space-y-3 p-5">
-            <h2 className="text-base font-semibold">Available Quizzes</h2>
+          <div className="space-y-4 rounded-2xl border border-border bg-card p-4 md:p-5 shadow-sm">
+            <div className="rounded-xl border border-border bg-muted/30 p-3">
+              <h2 className="text-base font-semibold text-foreground">Available Quizzes</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Pick a quiz to start a monitored fullscreen attempt.</p>
+            </div>
             {!availableQuizzes.length ? <p className="text-sm text-muted-foreground">No published quizzes available yet.</p> : null}
             {availableQuizzes.map((quiz) => (
-              <article key={quiz._id} className="flex items-center justify-between rounded-xl border border-border p-3">
+              <article key={quiz._id} className="flex flex-col gap-3 rounded-xl border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="font-medium">{quiz.title}</p>
+                  <p className="font-medium text-foreground">{quiz.title}</p>
                   <p className="text-xs text-muted-foreground">Max warnings: {quiz.maxWarnings}</p>
                 </div>
-                <Button className="rounded-xl" onClick={() => start(quiz._id)}>Start Quiz</Button>
+                <Button className="rounded-xl sm:min-w-32" onClick={() => start(quiz._id)}>Start Quiz</Button>
               </article>
             ))}
           </div>
         </section>
       ) : (
-        <section className="mx-auto max-w-4xl space-y-4">
-          <div className="rounded-xl border border-border bg-card p-4 text-sm">
-            <p className="font-semibold">{activeQuiz.title}</p>
-            <p className="text-muted-foreground">Fullscreen is required. Warnings: {warningCount}/{activeQuiz.maxWarnings}</p>
+        <section className="w-full space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Quiz</p>
+              <p className="mt-1 font-semibold text-foreground">{activeQuiz.title}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Progress</p>
+              <p className="mt-1 font-semibold text-foreground">{answeredCount}/{questions.length} answered</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Warnings</p>
+              <p className="mt-1 font-semibold text-foreground">{warningCount}/{activeQuiz.maxWarnings}</p>
+            </div>
           </div>
+
+          <div className="rounded-xl border border-border bg-card p-4 text-sm">
+            <p className="text-muted-foreground">Fullscreen is required. Activity is monitored continuously during this attempt.</p>
+          </div>
+
           {warningMessage ? (
             <div className="rounded-xl border border-amber-500/60 bg-amber-500/10 p-3 text-sm text-amber-700">
               Warning: {warningMessage}
             </div>
           ) : null}
-          <p className="text-sm text-muted-foreground">Answered {answeredCount} of {questions.length}</p>
+
           {currentQuestion ? (
-            <article key={currentQuestion.questionId} className="rounded-xl border border-border bg-card p-4">
-              <p className="mb-2 text-xs text-muted-foreground">Question {currentQuestionIndex + 1} of {questions.length}</p>
-              <p className="mb-3 font-medium">{currentQuestion.text}</p>
+            <article key={currentQuestion.questionId} className="rounded-2xl border border-border bg-card p-4 shadow-sm md:p-5">
+              <div className="mb-3 rounded-lg border border-border bg-muted/20 p-3">
+                <p className="text-xs text-muted-foreground">Question {currentQuestionIndex + 1} of {questions.length}</p>
+                <p className="mt-1 font-medium text-foreground">{currentQuestion.text}</p>
+              </div>
               {currentQuestion.type === "mcq" ? (
                 <div className="space-y-2">
                   {currentQuestion.options.map((opt, i) => (
-                    <label key={i} className="flex items-center gap-2 text-sm">
+                    <label key={i} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm">
                       <input
                         type="radio"
                         name={currentQuestion.questionId}
@@ -227,17 +344,18 @@ export default function StudentPracticePage() {
                       [currentQuestion.questionId]: { ...prev[currentQuestion.questionId], answerText: e.target.value },
                     }))
                   }
-                  className="min-h-24 w-full rounded-lg border border-border p-2 text-sm"
+                  className="min-h-28 w-full rounded-lg border border-border bg-background p-3 text-sm"
                   placeholder={currentQuestion.type === "brief" ? "Write a short answer..." : "Write a detailed answer..."}
                 />
               )}
             </article>
           ) : null}
 
-          <div className="flex gap-2">
+          <div className="rounded-xl border border-border bg-card p-3">
+            <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               variant="outline"
-              className="rounded-xl"
+              className="rounded-xl sm:min-w-40"
               onClick={() => setCurrentQuestionIndex((prev) => Math.max(prev - 1, 0))}
               disabled={currentQuestionIndex === 0 || isSubmitting}
             >
@@ -253,6 +371,7 @@ export default function StudentPracticePage() {
                 {isSubmitting ? "Submitting..." : "Submit Quiz"}
               </Button>
             )}
+            </div>
           </div>
         </section>
       )}
