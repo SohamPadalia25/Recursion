@@ -133,7 +133,7 @@ export default function StudentCoursePlayerPage() {
     const lastPlaybackTickAtRef = useRef<number | null>(null);
     const isSeekingRef = useRef(false);
     const seekEventsRef = useRef<number[]>([]);
-    const hasWindowFocusRef = useRef(true);
+    const hasWindowFocusRef = useRef(typeof document !== "undefined" ? document.hasFocus() : true);
     const lastAttentionSyncAtRef = useRef(0);
     const persistedAttentionRef = useRef<number | null>(null);
     const cvAttentionRef = useRef<number | null>(null);
@@ -572,13 +572,18 @@ export default function StudentCoursePlayerPage() {
         const onBlur = () => {
             hasWindowFocusRef.current = false;
         };
+        const onVisibilityChange = () => {
+            hasWindowFocusRef.current = document.visibilityState === "visible" && document.hasFocus();
+        };
 
         window.addEventListener("focus", onFocus);
         window.addEventListener("blur", onBlur);
+        document.addEventListener("visibilitychange", onVisibilityChange);
 
         return () => {
             window.removeEventListener("focus", onFocus);
             window.removeEventListener("blur", onBlur);
+            document.removeEventListener("visibilitychange", onVisibilityChange);
         };
     }, []);
 
@@ -853,17 +858,25 @@ export default function StudentCoursePlayerPage() {
         const delta = current - previous;
         const wallClockDelta = Math.max(0, (now - previousTick) / 1000);
         const playbackRate = Math.max(0.5, Number(video.playbackRate || 1));
-        const allowedEarnedDelta = Math.max(0, wallClockDelta * playbackRate * 1.1);
+        const expectedDelta = Math.max(0, wallClockDelta * playbackRate);
+        const allowedEarnedDelta = Math.max(0, expectedDelta * 1.15);
         const isFastForward = playbackRate > FAST_FORWARD_THRESHOLD;
-        const isDeltaJump = delta > allowedEarnedDelta * 1.6;
+        const hasReliableClockWindow = expectedDelta >= 0.2;
+        const isDeltaJump = hasReliableClockWindow && delta > allowedEarnedDelta * 2.2;
         const hasFrequentSeeks = seekEventsRef.current.length >= SEEK_EVENT_THRESHOLD;
         const abuseDetected = isSeekingRef.current || isFastForward || isDeltaJump || hasFrequentSeeks;
-        const isLegitForwardProgress = delta > 0 && !video.paused && !abuseDetected;
+        const hasLiveFocus = typeof document.hasFocus === "function" ? document.hasFocus() : hasWindowFocusRef.current;
+        const isLegitForwardProgress =
+            !isSeekingRef.current &&
+            delta > 0 &&
+            !video.paused &&
+            document.visibilityState === "visible" &&
+            (hasWindowFocusRef.current || hasLiveFocus);
 
         if (isLegitForwardProgress) {
-            const earnedDelta = Math.min(delta, allowedEarnedDelta);
+            const earnedDelta = Math.max(0, abuseDetected ? Math.min(delta, allowedEarnedDelta) : delta);
             setWatchedSeconds((prev) => {
-                const next = Number((prev + earnedDelta).toFixed(2));
+                const next = prev + earnedDelta;
                 setLessonProgressMap((map) => {
                     const current = map[activeLessonId || ""];
                     if (!activeLessonId || !current) return map;
