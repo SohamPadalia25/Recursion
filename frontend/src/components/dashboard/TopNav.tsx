@@ -1,4 +1,4 @@
-import { Search, Bell, ChevronDown, LogOut } from "lucide-react";
+import { Search, ChevronDown, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
@@ -34,11 +34,6 @@ export function TopNav() {
             className="w-64 h-9 pl-9 pr-4 rounded-xl bg-muted/60 border-none text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-all"
           />
         </div>
-
-        <button className="relative w-9 h-9 rounded-xl bg-muted/60 flex items-center justify-center hover:bg-muted transition-colors">
-          <Bell className="w-4 h-4 text-muted-foreground" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-dei-peach rounded-full" />
-        </button>
 
         <button
           onClick={() => navigate("/profile")}

@@ -4,7 +4,7 @@
 
 import { chatWithGroq } from "./groq.service.js";
 import { Quiz } from "../models/quiz.model.js";
-import { QuizAttempt } from "../models/quizAttempt.model.js";
+import { QuizAttempt } from "../models/quizattempt.model.js";
 import { Lesson } from "../models/lesson.model.js";
 import { getAdaptiveQuizSignals } from "./adaptiveLearning.service.js";
 

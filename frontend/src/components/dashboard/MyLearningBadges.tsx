@@ -93,10 +93,10 @@ export function MyLearningBadges() {
             )}
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 rounded-xl border-2 border-orange-300 bg-card p-3">
             <h4 className="text-sm font-semibold text-foreground">Recent badges</h4>
             {topBadges.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No badges yet.</p>
+              <p className="rounded-lg border border-border/70 bg-muted/20 p-3 text-xs text-muted-foreground">No badges yet.</p>
             ) : (
               topBadges.map((b) => (
                 <div key={b._id} className="rounded-xl border border-border/60 p-3">

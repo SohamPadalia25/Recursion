@@ -9,21 +9,13 @@ import { ProgressChart } from "@/components/dashboard/ProgressChart";
 import { AIBuddy } from "@/components/dashboard/AIBuddy";
 import { TrendingCourses } from "@/components/dashboard/TrendingCourses";
 import { MyLearningBadges } from "@/components/dashboard/MyLearningBadges";
-import { Button } from "@/components/ui/button";
-import { verifyCompletion } from "@/lib/certificate-api";
-import { useAuth } from "@/auth/AuthContext";
 import { JoinLiveSessionButton } from "@/components/dashboard/JoinLiveSessionButton";
 import { getMyLearning, type Enrollment } from "@/lib/course-api";
 import { getStudentProgressGraph, type StudentProgressGraph } from "@/lib/neo4j-api";
 import { ProgressGraphViz } from "@/components/ProgressGraphViz";
 
 const StudentDashboard = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const [courseId, setCourseId] = useState("");
-  const [checking, setChecking] = useState(false);
-  const [eligible, setEligible] = useState(false);
-  const [eligibilityMessage, setEligibilityMessage] = useState("Enter a course id to check certificate eligibility.");
   const [myLearning, setMyLearning] = useState<Enrollment[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [learningPlanCourseId, setLearningPlanCourseId] = useState("");

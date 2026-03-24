@@ -3,7 +3,7 @@
 // Implements SM-2 algorithm for review scheduling
 
 import { chatWithGroq } from "./groq.service.js";
-import { Flashcard } from "../models/flashcard.model.js";
+import { Flashcard } from "../models/flashCard.model.js";
 import { Lesson } from "../models/lesson.model.js";
 
 // ─────────────────────────────────────────────

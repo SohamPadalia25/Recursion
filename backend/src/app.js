@@ -62,6 +62,8 @@ app.use("/api", graphRoutes);
 app.use("/api", certificateRoutes);
 app.use("/api/v1", certificateRoutes);
 app.use("/api/v1/video", videoCallRoutes);
+app.use("/api/video", videoCallRoutes);
+app.use("/video", videoCallRoutes);
 app.use("/api/v1/notes", notesRoutes);
 app.use("/api", mailerRoutes);
 app.use("/api/v1/users", userRoutes);
