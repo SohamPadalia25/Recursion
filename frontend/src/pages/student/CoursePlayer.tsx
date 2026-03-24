@@ -138,6 +138,7 @@ export default function StudentCoursePlayerPage() {
     const persistedAttentionRef = useRef<number | null>(null);
     const cvAttentionRef = useRef<number | null>(null);
     const cvUiThrottleRef = useRef(0);
+    const persistWatchProgressRef = useRef<(force?: boolean) => Promise<void>>(async () => {});
 
     useEffect(() => {
         let mounted = true;
@@ -465,6 +466,10 @@ export default function StudentCoursePlayerPage() {
         [activeLessonId, courseId, effectiveLessonDuration, requiredWatchSeconds, watchedSeconds]
     );
 
+    useEffect(() => {
+        persistWatchProgressRef.current = persistWatchProgress;
+    }, [persistWatchProgress]);
+
     const computeAttentionScore = useCallback(() => {
         const video = videoRef.current;
         if (!video || video.paused || video.ended) return null;
@@ -556,9 +561,9 @@ export default function StudentCoursePlayerPage() {
 
     useEffect(() => {
         return () => {
-            void persistWatchProgress(true);
+            void persistWatchProgressRef.current(true);
         };
-    }, [persistWatchProgress]);
+    }, [activeLessonId]);
 
     useEffect(() => {
         const onFocus = () => {
@@ -853,15 +858,10 @@ export default function StudentCoursePlayerPage() {
         const isDeltaJump = delta > allowedEarnedDelta * 1.6;
         const hasFrequentSeeks = seekEventsRef.current.length >= SEEK_EVENT_THRESHOLD;
         const abuseDetected = isSeekingRef.current || isFastForward || isDeltaJump || hasFrequentSeeks;
-        const isLegitForwardProgress =
-            !isSeekingRef.current &&
-            delta > 0 &&
-            !video.paused &&
-            document.visibilityState === "visible" &&
-            hasWindowFocusRef.current;
+        const isLegitForwardProgress = delta > 0 && !video.paused && !abuseDetected;
 
         if (isLegitForwardProgress) {
-            const earnedDelta = abuseDetected ? Math.min(delta, allowedEarnedDelta) : delta;
+            const earnedDelta = Math.min(delta, allowedEarnedDelta);
             setWatchedSeconds((prev) => {
                 const next = Number((prev + earnedDelta).toFixed(2));
                 setLessonProgressMap((map) => {
@@ -1254,7 +1254,7 @@ export default function StudentCoursePlayerPage() {
                             <div className="mt-3 rounded-lg border border-border/70 bg-muted/20 p-3">
                                 <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
                                     <span>
-                                        Watched {Math.floor(watchedSeconds)}s
+                                        Watched {Math.max(0, watchedSeconds).toFixed(1)}s
                                         {requiredWatchSeconds > 0 ? ` / ${requiredWatchSeconds}s required` : ""}
                                     </span>
                                     <span>{isLessonCompleted ? "Completed" : `${watchProgressPercent}%`}</span>
