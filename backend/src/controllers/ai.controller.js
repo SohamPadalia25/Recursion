@@ -10,7 +10,7 @@ import { runDashboardAgents } from "../services/agentOrchestrator.service.js";
 import { buildAdaptiveLearningSnapshot } from "../services/adaptiveLearning.service.js";
 import { sendMessageToTutor, flagTutorResponse, getChatHistory } from "../services/aiTutor.service.js";
 import { getOrCreateQuiz, submitQuizAttempt, regenerateQuiz } from "../services/adaptiveQuiz.service.js";
-import { generateFlashcards, reviewFlashcard, getDueFlashcards } from "../services/flashCardAgent.service.js";
+import { generateFlashcards, reviewFlashcard, getDueFlashcards } from "../services/flashcardAgent.service.js";
 import { createStudyPlan, runStudyPlanAgent } from "../services/studyPlanAgent.service.js";
 import { findJobsFromCertificates, getTrendingJobsAndSkills } from "../services/jobRecommendation.service.js";
 
