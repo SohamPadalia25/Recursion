@@ -11,6 +11,7 @@ import {
   type QuizBankQuestionInput,
   type QuizDistribution,
 } from "@/lib/quiz-api";
+import { getCourseDetail, getInstructorCourses, type Course } from "@/lib/course-api";
 
 const defaultDistribution: QuizDistribution = {
   questionsPerStudent: 10,
@@ -62,6 +63,11 @@ export default function InstructorQuizBuilderPage() {
   const [questionDraft, setQuestionDraft] = useState<QuizBankQuestionInput>({ type: "mcq", text: "", options: ["", "", "", ""], correctIndex: 0, marks: 1, difficulty: "medium" });
   const [manualQuestions, setManualQuestions] = useState<QuizBankQuestionInput[]>([]);
   const [quizBanks, setQuizBanks] = useState<QuizBank[]>([]);
+  const [instructorCourses, setInstructorCourses] = useState<Course[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedModuleId, setSelectedModuleId] = useState("");
+  const [selectedLessonId, setSelectedLessonId] = useState("");
+  const [courseDetail, setCourseDetail] = useState<Awaited<ReturnType<typeof getCourseDetail>> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -77,7 +83,34 @@ export default function InstructorQuizBuilderPage() {
 
   useEffect(() => {
     refresh();
+    getInstructorCourses().then((data) => setInstructorCourses(data || [])).catch(() => setInstructorCourses([]));
   }, []);
+
+  useEffect(() => {
+    if (!selectedCourseId) {
+      setCourseDetail(null);
+      setSelectedModuleId("");
+      setSelectedLessonId("");
+      return;
+    }
+
+    let mounted = true;
+    const loadCourse = async () => {
+      try {
+        const detail = await getCourseDetail(selectedCourseId);
+        if (!mounted) return;
+        setCourseDetail(detail);
+      } catch {
+        if (!mounted) return;
+        setCourseDetail(null);
+      }
+    };
+
+    void loadCourse();
+    return () => {
+      mounted = false;
+    };
+  }, [selectedCourseId]);
 
   const totalConfigured = useMemo(
     () => Number(distribution.mcqCount) + Number(distribution.briefCount) + Number(distribution.descriptiveCount),
@@ -110,6 +143,9 @@ export default function InstructorQuizBuilderPage() {
           questions: manualQuestions,
           distribution: { ...distribution, questionsPerStudent: totalConfigured },
           maxWarnings,
+          courseId: selectedCourseId || undefined,
+          moduleId: selectedModuleId || undefined,
+          lessonId: selectedLessonId || undefined,
         });
       } else {
         await generateQuizBank({
@@ -120,6 +156,9 @@ export default function InstructorQuizBuilderPage() {
           pdfFile,
           distribution: { ...distribution, questionsPerStudent: totalConfigured },
           maxWarnings,
+          courseId: selectedCourseId || undefined,
+          moduleId: selectedModuleId || undefined,
+          lessonId: selectedLessonId || undefined,
         });
       }
 
@@ -128,6 +167,10 @@ export default function InstructorQuizBuilderPage() {
       setTopic("");
       setPdfFile(null);
       setManualQuestions([]);
+      setSelectedCourseId("");
+      setSelectedModuleId("");
+      setSelectedLessonId("");
+      setCourseDetail(null);
       await refresh();
       setSuccess(mode === "manual" ? "Question bank created." : "AI question bank generated.");
     } catch (err) {
@@ -174,8 +217,8 @@ export default function InstructorQuizBuilderPage() {
                 key={item.id}
                 onClick={() => setMode(item.id)}
                 className={`rounded-xl border p-3 text-left transition ${mode === item.id
-                    ? "border-primary bg-primary/10 shadow-sm"
-                    : "border-border bg-card hover:border-primary/30"
+                  ? "border-primary bg-primary/10 shadow-sm"
+                  : "border-border bg-card hover:border-primary/30"
                   }`}
               >
                 <p className="text-sm font-semibold text-foreground">{item.label}</p>
@@ -203,6 +246,61 @@ export default function InstructorQuizBuilderPage() {
                 onChange={(e) => setMaxWarnings(Number(e.target.value))}
                 className="h-10 w-full rounded-xl border border-border bg-muted/30 px-3 outline-none ring-primary/30 focus:ring-2"
               />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-muted-foreground">Course (optional)</span>
+              <select
+                value={selectedCourseId}
+                onChange={(e) => {
+                  setSelectedCourseId(e.target.value);
+                  setSelectedModuleId("");
+                  setSelectedLessonId("");
+                }}
+                className="h-10 w-full rounded-xl border border-border bg-muted/30 px-3 outline-none ring-primary/30 focus:ring-2"
+              >
+                <option value="">Any course</option>
+                {instructorCourses.map((course) => (
+                  <option key={course._id} value={course._id}>{course.title}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm md:col-span-2">
+              <span className="mb-1 block text-muted-foreground">Module (optional)</span>
+              <select
+                value={selectedModuleId}
+                onChange={(e) => {
+                  setSelectedModuleId(e.target.value);
+                  setSelectedLessonId("");
+                }}
+                className="h-10 w-full rounded-xl border border-border bg-muted/30 px-3 outline-none ring-primary/30 focus:ring-2"
+                disabled={!selectedCourseId || !courseDetail?.modules?.length}
+              >
+                <option value="">Course-level quiz</option>
+                {(courseDetail?.modules || []).map((module) => (
+                  <option key={module._id} value={module._id}>{module.title}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm md:col-span-2">
+              <span className="mb-1 block text-muted-foreground">Topic Lesson (optional)</span>
+              <select
+                value={selectedLessonId}
+                onChange={(e) => setSelectedLessonId(e.target.value)}
+                className="h-10 w-full rounded-xl border border-border bg-muted/30 px-3 outline-none ring-primary/30 focus:ring-2"
+                disabled={!selectedCourseId || !selectedModuleId || !courseDetail?.modules?.length}
+              >
+                <option value="">Module-level quiz</option>
+                {(courseDetail?.modules || [])
+                  .filter((module) => module._id === selectedModuleId)
+                  .flatMap((module) =>
+                    (module.lessons || []).map((lesson) => (
+                      <option key={lesson._id} value={lesson._id}>{module.title} - {lesson.title}</option>
+                    ))
+                  )}
+              </select>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Choose only course for course-level gating, choose module for module-level, or pick lesson for topic-level unlock.
+              </span>
             </label>
           </div>
 
@@ -318,6 +416,9 @@ export default function InstructorQuizBuilderPage() {
                     <p className="font-medium text-foreground">{bank.title}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Source: {bank.sourceType.toUpperCase()} | Questions: {bank.questions?.length || 0}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Scope: {bank.lesson ? "Lesson" : bank.module ? "Module" : bank.course ? "Course" : "Global"}
                     </p>
                     <div className="mt-2 flex flex-wrap gap-1 text-xs">
                       <span className="rounded-full bg-muted px-2 py-0.5">MCQ {bank.distribution?.mcqCount || 0}</span>

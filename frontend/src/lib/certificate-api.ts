@@ -9,24 +9,37 @@ export type VerifyCompletionResult = {
     courseTitle: string;
     lectureCount: number;
     completedLectureCount: number;
+    requiredQuizCount?: number;
+    passedRequiredQuizCount?: number;
+    allRequiredQuizzesPassed?: boolean;
+    quizRequirements?: Array<{
+      quizId: string;
+      title: string;
+      lessonId?: string | null;
+      moduleId?: string | null;
+      courseId?: string | null;
+      isPassed: boolean;
+      bestPassedScore?: number | null;
+      passedAt?: string | null;
+    }>;
   };
 };
 
 export type CertificateRecord = {
   _id: string;
   userId:
-    | string
-    | {
-        _id: string;
-        fullname?: string;
-        email?: string;
-      };
+  | string
+  | {
+    _id: string;
+    fullname?: string;
+    email?: string;
+  };
   courseId:
-    | string
-    | {
-        _id: string;
-        title?: string;
-      };
+  | string
+  | {
+    _id: string;
+    title?: string;
+  };
   issuedAt: string;
   hash: string;
   previousHash: string;

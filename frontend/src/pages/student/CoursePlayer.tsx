@@ -15,6 +15,7 @@ import {
     saveLessonAttentionScore,
     updateLessonWatchTime,
 } from "@/lib/course-api";
+import { getCourseTopicQuizzes, type QuizBank } from "@/lib/quiz-api";
 
 type FaceLandmarkPoint = {
     x: number;
@@ -118,6 +119,8 @@ export default function StudentCoursePlayerPage() {
     const [plainNoteInput, setPlainNoteInput] = useState("");
     const [plainNotes, setPlainNotes] = useState<PlainTextNote[]>([]);
     const [doubtEntries, setDoubtEntries] = useState<DoubtEntry[]>([]);
+    const [courseQuizzes, setCourseQuizzes] = useState<QuizBank[]>([]);
+    const [quizzesLoading, setQuizzesLoading] = useState(false);
 
     const moduleIndex = Number(weekIdx ?? 0);
     const lessonIndex = Number(lectureIdx ?? 0);
@@ -138,7 +141,7 @@ export default function StudentCoursePlayerPage() {
     const persistedAttentionRef = useRef<number | null>(null);
     const cvAttentionRef = useRef<number | null>(null);
     const cvUiThrottleRef = useRef(0);
-    const persistWatchProgressRef = useRef<(force?: boolean) => Promise<void>>(async () => {});
+    const persistWatchProgressRef = useRef<(force?: boolean) => Promise<void>>(async () => { });
 
     useEffect(() => {
         let mounted = true;
@@ -237,6 +240,33 @@ export default function StudentCoursePlayerPage() {
     }, [activeLessonId]);
 
     useEffect(() => {
+        if (!courseId) {
+            setCourseQuizzes([]);
+            return;
+        }
+
+        let mounted = true;
+        const loadCourseQuizzes = async () => {
+            setQuizzesLoading(true);
+            try {
+                const data = await getCourseTopicQuizzes(courseId);
+                if (!mounted) return;
+                setCourseQuizzes(data || []);
+            } catch {
+                if (!mounted) return;
+                setCourseQuizzes([]);
+            } finally {
+                if (mounted) setQuizzesLoading(false);
+            }
+        };
+
+        void loadCourseQuizzes();
+        return () => {
+            mounted = false;
+        };
+    }, [courseId]);
+
+    useEffect(() => {
         if (!notesStorageKey) {
             setNotes([]);
             setAiSummary([]);
@@ -277,14 +307,14 @@ export default function StudentCoursePlayerPage() {
             setDoubtEntries(
                 Array.isArray(parsed.doubtEntries)
                     ? parsed.doubtEntries.map((entry) => ({
-                          ...entry,
-                          loading: false,
-                          error: "",
-                          aiExplanation: String(entry?.aiExplanation || ""),
-                          aiSimplerExplanation: String(entry?.aiSimplerExplanation || ""),
-                          aiPrerequisite: String(entry?.aiPrerequisite || ""),
-                          aiPrerequisiteWhy: String(entry?.aiPrerequisiteWhy || ""),
-                      }))
+                        ...entry,
+                        loading: false,
+                        error: "",
+                        aiExplanation: String(entry?.aiExplanation || ""),
+                        aiSimplerExplanation: String(entry?.aiSimplerExplanation || ""),
+                        aiPrerequisite: String(entry?.aiPrerequisite || ""),
+                        aiPrerequisiteWhy: String(entry?.aiPrerequisiteWhy || ""),
+                    }))
                     : []
             );
             setNotesSavedAt(parsed.updatedAt ? new Date(parsed.updatedAt).toLocaleTimeString() : "");
@@ -644,7 +674,6 @@ export default function StudentCoursePlayerPage() {
                 await webcamVideo.play();
 
                 setTrackerStatus("Loading eye model...");
-                // @ts-expect-error: package resolves at runtime; local TS env may miss its type declarations.
                 const vision = await import("@mediapipe/tasks-vision");
                 const filesetResolver = await vision.FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
@@ -955,7 +984,7 @@ export default function StudentCoursePlayerPage() {
         if (!video) return;
         video.currentTime = Math.max(0, time);
         setCurrentVideoTime(Math.max(0, time));
-        void video.play().catch(() => {});
+        void video.play().catch(() => { });
     }, []);
 
     const addTimestampNote = () => {
@@ -1054,8 +1083,8 @@ export default function StudentCoursePlayerPage() {
             const nearby = idx >= 0
                 ? transcriptSegments.slice(Math.max(0, idx - 2), Math.min(transcriptSegments.length, idx + 3))
                 : transcriptSegments
-                      .filter((segment) => Math.abs(segment.start - second) <= 10)
-                      .slice(0, 5);
+                    .filter((segment) => Math.abs(segment.start - second) <= 10)
+                    .slice(0, 5);
 
             const result = await analyzeLessonDoubt({
                 lessonTitle: activeLesson?.title,
@@ -1072,13 +1101,13 @@ export default function StudentCoursePlayerPage() {
                 prev.map((item) =>
                     item.id === id
                         ? {
-                              ...item,
-                              loading: false,
-                              aiExplanation: result.explanation || "",
-                              aiSimplerExplanation: result.simplerExplanation || "",
-                              aiPrerequisite: result.relatedPrerequisite || "",
-                              aiPrerequisiteWhy: result.prerequisiteWhy || "",
-                          }
+                            ...item,
+                            loading: false,
+                            aiExplanation: result.explanation || "",
+                            aiSimplerExplanation: result.simplerExplanation || "",
+                            aiPrerequisite: result.relatedPrerequisite || "",
+                            aiPrerequisiteWhy: result.prerequisiteWhy || "",
+                        }
                         : item
                 )
             );
@@ -1087,10 +1116,10 @@ export default function StudentCoursePlayerPage() {
                 prev.map((item) =>
                     item.id === id
                         ? {
-                              ...item,
-                              loading: false,
-                              error: err instanceof Error ? err.message : "Failed to analyze doubt",
-                          }
+                            ...item,
+                            loading: false,
+                            error: err instanceof Error ? err.message : "Failed to analyze doubt",
+                        }
                         : item
                 )
             );
@@ -1187,6 +1216,15 @@ export default function StudentCoursePlayerPage() {
 
     const activeModule = courseData.modules[moduleIndex];
     const activeLesson = activeModule?.lessons?.[lessonIndex];
+    const activeModuleId = activeModule?._id;
+
+    const activeLessonQuizzes = courseQuizzes.filter((quiz) => {
+        const lessonRef = quiz.lesson;
+        const moduleRef = quiz.module;
+        const lessonId = lessonRef ? (typeof lessonRef === "string" ? lessonRef : lessonRef._id || "") : "";
+        const moduleId = moduleRef ? (typeof moduleRef === "string" ? moduleRef : moduleRef._id || "") : "";
+        return lessonId === activeLesson?._id || moduleId === activeModuleId;
+    });
 
     if (!activeModule || !activeLesson) {
         return (
@@ -1301,9 +1339,59 @@ export default function StudentCoursePlayerPage() {
                                         <CheckCircle2 className="mr-1 h-4 w-4" /> Next lesson
                                     </Button>
                                 ) : null}
+                                {activeLessonQuizzes[0]?.isUnlocked !== false ? (
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        className="rounded-lg"
+                                        onClick={() => navigate(`/student/practice?courseId=${courseData.course._id}&quizId=${activeLessonQuizzes[0]._id}`)}
+                                        disabled={!activeLessonQuizzes.length}
+                                    >
+                                        Take Lesson Quiz
+                                    </Button>
+                                ) : null}
                                 <Button size="sm" variant="outline" className="rounded-lg" onClick={() => navigate(`/student/course/${courseData.course._id}`)}>
                                     Back to course
                                 </Button>
+                            </div>
+
+                            <div className="mt-3 rounded-lg border border-border/70 bg-muted/20 p-3">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lesson quiz</p>
+                                {quizzesLoading ? (
+                                    <p className="mt-1 text-sm text-muted-foreground">Loading quiz availability...</p>
+                                ) : activeLessonQuizzes.length === 0 ? (
+                                    <p className="mt-1 text-sm text-muted-foreground">No quiz published for this lesson yet.</p>
+                                ) : (
+                                    <div className="mt-2 space-y-2">
+                                        {activeLessonQuizzes.map((quiz) => (
+                                            <div key={quiz._id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2">
+                                                <div>
+                                                    <p className="text-sm font-medium text-foreground">{quiz.title}</p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {quiz.lesson ? "Lesson quiz" : quiz.module ? "Module quiz" : "Course quiz"}
+                                                    </p>
+                                                    {quiz.hasPassed ? (
+                                                        <p className="text-xs text-emerald-700">
+                                                            Passed{typeof quiz.bestPassedScore === "number" ? ` (${quiz.bestPassedScore}%)` : ""}
+                                                        </p>
+                                                    ) : null}
+                                                    {quiz.isUnlocked === false ? (
+                                                        <p className="text-xs text-amber-700">{quiz.lockReason || "Complete this lesson to unlock."}</p>
+                                                    ) : null}
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    className="rounded-lg"
+                                                    variant={quiz.isUnlocked === false ? "outline" : "default"}
+                                                    disabled={quiz.isUnlocked === false}
+                                                    onClick={() => navigate(`/student/practice?courseId=${courseData.course._id}&quizId=${quiz._id}`)}
+                                                >
+                                                    {quiz.hasPassed ? "Retake" : "Start Quiz"}
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </article>

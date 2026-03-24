@@ -14,6 +14,7 @@ import {
     type CourseReview,
     type CourseProgress,
 } from "@/lib/course-api";
+import { getCourseTopicQuizzes, type QuizBank } from "@/lib/quiz-api";
 import { studentNav } from "../roleNav";
 
 export default function StudentCourseDetailPage() {
@@ -32,6 +33,8 @@ export default function StudentCourseDetailPage() {
     const [deletingReview, setDeletingReview] = useState(false);
     const [reviewRating, setReviewRating] = useState(5);
     const [reviewComment, setReviewComment] = useState("");
+    const [courseQuizzes, setCourseQuizzes] = useState<QuizBank[]>([]);
+    const [quizzesLoading, setQuizzesLoading] = useState(false);
 
     useEffect(() => {
         let mounted = true;
@@ -103,6 +106,33 @@ export default function StudentCourseDetailPage() {
             mounted = false;
         };
     }, [courseId]);
+
+    useEffect(() => {
+        if (!courseId || !isEnrolled) {
+            setCourseQuizzes([]);
+            return;
+        }
+
+        let mounted = true;
+        const loadQuizzes = async () => {
+            setQuizzesLoading(true);
+            try {
+                const data = await getCourseTopicQuizzes(courseId);
+                if (!mounted) return;
+                setCourseQuizzes(data || []);
+            } catch {
+                if (!mounted) return;
+                setCourseQuizzes([]);
+            } finally {
+                if (mounted) setQuizzesLoading(false);
+            }
+        };
+
+        void loadQuizzes();
+        return () => {
+            mounted = false;
+        };
+    }, [courseId, isEnrolled]);
 
     const lessonCount = useMemo(() => {
         return (courseData?.modules || []).reduce((total, mod) => total + (mod.lessons?.length || 0), 0);
@@ -307,6 +337,55 @@ export default function StudentCourseDetailPage() {
                             )}
                         </div>
                     </article>
+
+                    {isEnrolled ? (
+                        <article className="rounded-2xl border border-border bg-card p-6">
+                            <div className="flex items-center justify-between gap-3">
+                                <h2 className="text-lg font-semibold text-foreground">Topic Quizzes</h2>
+                                <p className="text-sm text-muted-foreground">Unlock after topic completion</p>
+                            </div>
+
+                            <div className="mt-4 space-y-3">
+                                {quizzesLoading ? (
+                                    <p className="text-sm text-muted-foreground">Loading quizzes...</p>
+                                ) : courseQuizzes.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No topic quizzes published yet for this course.</p>
+                                ) : (
+                                    courseQuizzes.map((quiz) => {
+                                        const lessonTitle = quiz.lesson && typeof quiz.lesson === "object" ? quiz.lesson.title : "";
+                                        return (
+                                            <div key={quiz._id} className="rounded-lg border border-border/70 p-3">
+                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-sm font-medium text-foreground">{quiz.title}</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {lessonTitle ? `Topic: ${lessonTitle}` : "Course-level quiz"}
+                                                        </p>
+                                                        {quiz.isUnlocked === false ? (
+                                                            <p className="mt-1 text-xs text-amber-700">{quiz.lockReason || "Complete topic to unlock."}</p>
+                                                        ) : null}
+                                                        {quiz.hasPassed ? (
+                                                            <p className="mt-1 text-xs text-emerald-700">
+                                                                Passed{typeof quiz.bestPassedScore === "number" ? ` (${quiz.bestPassedScore}%)` : ""}
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        variant={quiz.isUnlocked === false ? "outline" : "default"}
+                                                        disabled={quiz.isUnlocked === false}
+                                                        onClick={() => navigate(`/student/practice?courseId=${course._id}&quizId=${quiz._id}`)}
+                                                    >
+                                                        {quiz.hasPassed ? "Retake Quiz" : "Take Quiz"}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </article>
+                    ) : null}
                 </section>
 
                 <aside className="self-start space-y-4 xl:sticky xl:top-24">

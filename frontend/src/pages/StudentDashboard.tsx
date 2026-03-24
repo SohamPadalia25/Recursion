@@ -14,6 +14,8 @@ import { verifyCompletion } from "@/lib/certificate-api";
 import { useAuth } from "@/auth/AuthContext";
 import { JoinLiveSessionButton } from "@/components/dashboard/JoinLiveSessionButton";
 import { getMyLearning, type Enrollment } from "@/lib/course-api";
+import { getStudentProgressGraph, type StudentProgressGraph } from "@/lib/neo4j-api";
+import { ProgressGraphViz } from "@/components/ProgressGraphViz";
 
 const StudentDashboard = () => {
   const { user } = useAuth();
@@ -25,6 +27,8 @@ const StudentDashboard = () => {
   const [myLearning, setMyLearning] = useState<Enrollment[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [learningPlanCourseId, setLearningPlanCourseId] = useState("");
+  const [graphData, setGraphData] = useState<StudentProgressGraph | null>(null);
+  const [graphLoading, setGraphLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
@@ -42,6 +46,28 @@ const StudentDashboard = () => {
 
     load();
 
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadGraph = async () => {
+      setGraphLoading(true);
+      try {
+        const data = await getStudentProgressGraph();
+        if (!mounted) return;
+        setGraphData(data);
+      } catch {
+        if (!mounted) return;
+        setGraphData(null);
+      } finally {
+        if (mounted) setGraphLoading(false);
+      }
+    };
+
+    void loadGraph();
     return () => {
       mounted = false;
     };
@@ -92,13 +118,17 @@ const StudentDashboard = () => {
       setEligible(result.eligible);
 
       const pct = (result.details.watchRatio * 100).toFixed(1);
+      const quizPart =
+        typeof result.details.requiredQuizCount === "number"
+          ? ` Quizzes passed: ${result.details.passedRequiredQuizCount || 0}/${result.details.requiredQuizCount}.`
+          : "";
       if (result.eligible) {
         setEligibilityMessage(
-          `Eligible: ${result.details.completedLectureCount}/${result.details.lectureCount} lectures completed and ${pct}% watch ratio.`
+          `Eligible: ${result.details.completedLectureCount}/${result.details.lectureCount} lectures completed and ${pct}% watch ratio.${quizPart}`
         );
       } else {
         setEligibilityMessage(
-          `Not eligible yet: completed ${result.details.completedLectureCount}/${result.details.lectureCount} lectures and ${pct}% watch ratio.`
+          `Not eligible yet: completed ${result.details.completedLectureCount}/${result.details.lectureCount} lectures and ${pct}% watch ratio.${quizPart}`
         );
       }
     } catch (error) {
@@ -149,6 +179,32 @@ const StudentDashboard = () => {
               )}
             </div>
 
+            <div className="mt-3 rounded-xl border border-border/70 bg-muted/20 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your Course IDs</p>
+              {loadingCourses ? (
+                <p className="mt-1 text-sm text-muted-foreground">Loading enrolled courses...</p>
+              ) : myLearning.length === 0 ? (
+                <p className="mt-1 text-sm text-muted-foreground">No enrolled courses found.</p>
+              ) : (
+                <div className="mt-2 space-y-2">
+                  {myLearning.slice(0, 8).map((entry) => {
+                    const id = entry.course?._id || "";
+                    return (
+                      <div key={id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground line-clamp-1">{entry.course?.title || "Course"}</p>
+                          <p className="text-xs text-muted-foreground break-all">ID: {id}</p>
+                        </div>
+                        <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setCourseId(id)}>
+                          Use ID
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <p className="mt-3 text-sm text-muted-foreground">{eligibilityMessage}</p>
           </div>
 
@@ -172,6 +228,24 @@ const StudentDashboard = () => {
                 onSelectCourse={handleLearningPlanCourse}
               />
               <ProgressChart />
+
+              <section className="rounded-2xl border border-border bg-card p-4 md:p-5">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Knowledge Graph Progress</h3>
+                    <p className="text-sm text-muted-foreground">Live graph of courses, modules, and topic completion.</p>
+                  </div>
+                  <Button variant="outline" className="rounded-xl" onClick={() => navigate("/student/neo4j-insights")}>Open Full Graph</Button>
+                </div>
+
+                {graphLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading graph...</p>
+                ) : graphData ? (
+                  <ProgressGraphViz data={graphData} height={320} />
+                ) : (
+                  <p className="text-sm text-muted-foreground">Graph unavailable right now.</p>
+                )}
+              </section>
             </div>
 
             <div>

@@ -1,10 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AppFrame } from "@/components/platform/AppFrame";
 import { studentNav } from "../roleNav";
 import { Button } from "@/components/ui/button";
-import { getAvailableQuizzes, startQuiz, submitQuiz, getQuizAttemptReport, type QuizBank, type StartQuizResponse, type QuizAttemptReport } from "@/lib/quiz-api";
+import {
+  getAvailableQuizzes,
+  getCourseTopicQuizzes,
+  startQuiz,
+  submitQuiz,
+  getQuizAttemptReport,
+  type QuizBank,
+  type StartQuizResponse,
+  type QuizAttemptReport,
+} from "@/lib/quiz-api";
 
 export default function StudentPracticePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const quizIdFromQuery = searchParams.get("quizId") || "";
+  const courseIdFromQuery = searchParams.get("courseId") || "";
   const [availableQuizzes, setAvailableQuizzes] = useState<QuizBank[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<StartQuizResponse | null>(null);
   const [answers, setAnswers] = useState<Record<string, { selectedIndex?: number; answerText?: string }>>({});
@@ -22,6 +35,7 @@ export default function StudentPracticePage() {
   const startTimeRef = useRef<number>(0);
   const questionStartRef = useRef<number>(0);
   const currentQuestionIdRef = useRef<string>("");
+  const deepLinkConsumedRef = useRef<string>("");
 
   const pushActivity = (eventType: string, meta = "") => {
     setActivityLogs((prev) => [...prev, { eventType, timestamp: new Date().toISOString(), meta }]);
@@ -34,8 +48,31 @@ export default function StudentPracticePage() {
   };
 
   useEffect(() => {
-    getAvailableQuizzes().then(setAvailableQuizzes).catch(() => setAvailableQuizzes([]));
-  }, []);
+    const loadQuizzes = async () => {
+      try {
+        if (courseIdFromQuery) {
+          const data = await getCourseTopicQuizzes(courseIdFromQuery);
+          setAvailableQuizzes(data || []);
+        } else {
+          const data = await getAvailableQuizzes();
+          setAvailableQuizzes(data || []);
+        }
+      } catch {
+        setAvailableQuizzes([]);
+      }
+    };
+
+    void loadQuizzes();
+  }, [courseIdFromQuery]);
+
+  useEffect(() => {
+    if (!quizIdFromQuery) return;
+    if (deepLinkConsumedRef.current === quizIdFromQuery) return;
+    const target = availableQuizzes.find((quiz) => quiz._id === quizIdFromQuery);
+    if (!target || target.isUnlocked === false || activeQuiz) return;
+    deepLinkConsumedRef.current = quizIdFromQuery;
+    void start(target._id);
+  }, [activeQuiz, availableQuizzes, quizIdFromQuery]);
 
   useEffect(() => {
     if (!activeQuiz) return;
@@ -102,6 +139,11 @@ export default function StudentPracticePage() {
     try {
       const data = await startQuiz(quizId);
       setActiveQuiz(data);
+      if (quizIdFromQuery && quizIdFromQuery === quizId) {
+        const next = new URLSearchParams(searchParams);
+        next.delete("quizId");
+        setSearchParams(next, { replace: true });
+      }
       startTimeRef.current = Date.now();
       questionStartRef.current = Date.now();
       currentQuestionIdRef.current = data.questions?.[0]?.questionId || "";
@@ -321,9 +363,22 @@ export default function StudentPracticePage() {
               <article key={quiz._id} className="flex items-center justify-between rounded-xl border border-border p-3">
                 <div>
                   <p className="font-medium">{quiz.title}</p>
-                  <p className="text-xs text-muted-foreground">Max warnings: {quiz.maxWarnings}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Max warnings: {quiz.maxWarnings}
+                    {quiz.lesson && typeof quiz.lesson === "object" && quiz.lesson.title
+                      ? ` • Topic: ${quiz.lesson.title}`
+                      : ""}
+                  </p>
+                  {quiz.isUnlocked === false ? (
+                    <p className="mt-1 text-xs text-amber-700">{quiz.lockReason || "Complete the topic first."}</p>
+                  ) : null}
+                  {quiz.hasPassed ? (
+                    <p className="mt-1 text-xs text-emerald-700">Passed{typeof quiz.bestPassedScore === "number" ? ` (${quiz.bestPassedScore}%)` : ""}</p>
+                  ) : null}
                 </div>
-                <Button className="rounded-xl" onClick={() => start(quiz._id)}>Start Quiz</Button>
+                <Button className="rounded-xl" onClick={() => start(quiz._id)} disabled={quiz.isUnlocked === false}>
+                  {quiz.hasPassed ? "Retake" : "Start Quiz"}
+                </Button>
               </article>
             ))}
           </div>

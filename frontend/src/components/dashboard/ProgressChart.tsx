@@ -1,28 +1,83 @@
 import { motion } from "framer-motion";
 import { RadarChart, PolarGrid, PolarAngleAxis, Radar, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { useState } from "react";
-
-const skillData = [
-  { subject: "ML Basics", score: 92 },
-  { subject: "Statistics", score: 78 },
-  { subject: "Python", score: 88 },
-  { subject: "Deep Learning", score: 55 },
-  { subject: "NLP", score: 40 },
-  { subject: "Data Viz", score: 85 },
-];
-
-const streakData = [
-  { day: "Mon", hours: 1.5 },
-  { day: "Tue", hours: 2.1 },
-  { day: "Wed", hours: 0.8 },
-  { day: "Thu", hours: 3.2 },
-  { day: "Fri", hours: 2.5 },
-  { day: "Sat", hours: 1.2 },
-  { day: "Sun", hours: 2.8 },
-];
+import { useEffect, useMemo, useState } from "react";
+import { getCourseProgress, getMyEnrollments } from "@/lib/course-api";
 
 export function ProgressChart() {
   const [tab, setTab] = useState<"skills" | "streak">("skills");
+  const [skillData, setSkillData] = useState<Array<{ subject: string; score: number }>>([]);
+  const [streakData, setStreakData] = useState<Array<{ day: string; hours: number }>>([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        const enrollments = await getMyEnrollments();
+        const courseIds = (enrollments || []).map((entry) => entry.course?._id).filter(Boolean);
+        const progressList = await Promise.all(
+          courseIds.map(async (courseId) => {
+            try {
+              return await getCourseProgress(courseId);
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        if (!mounted) return;
+
+        const radar = (enrollments || [])
+          .slice(0, 6)
+          .map((entry, idx) => ({
+            subject: (entry.course?.title || `Course ${idx + 1}`).slice(0, 12),
+            score: Number(entry.completionPercentage || 0),
+          }));
+        setSkillData(radar);
+
+        const completionEvents = progressList
+          .filter(Boolean)
+          .flatMap((item) => item?.lessons || [])
+          .filter((lesson) => lesson?.isCompleted)
+          .map((lesson) => {
+            const completedAt = lesson?.progress?.completedAt || lesson?.progress?.lastWatchedAt;
+            return completedAt ? new Date(completedAt) : null;
+          })
+          .filter((d): d is Date => Boolean(d));
+
+        const dailyCount = new Map<string, number>();
+        completionEvents.forEach((date) => {
+          const key = date.toDateString();
+          dailyCount.set(key, (dailyCount.get(key) || 0) + 1);
+        });
+
+        const week = Array.from({ length: 7 }).map((_, idx) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - idx));
+          const key = d.toDateString();
+          return {
+            day: d.toLocaleDateString(undefined, { weekday: "short" }),
+            hours: Number((dailyCount.get(key) || 0).toFixed(1)),
+          };
+        });
+        setStreakData(week);
+      } catch {
+        if (!mounted) return;
+        setSkillData([]);
+        setStreakData([]);
+      }
+    };
+
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const weakestArea = useMemo(() => {
+    if (!skillData.length) return null;
+    return [...skillData].sort((a, b) => a.score - b.score)[0];
+  }, [skillData]);
 
   return (
     <motion.div
@@ -38,11 +93,10 @@ export function ProgressChart() {
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                tab === t
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${tab === t
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
-              }`}
+                }`}
             >
               {t === "skills" ? "Skill Map" : "Streak"}
             </button>
@@ -105,7 +159,8 @@ export function ProgressChart() {
         <div className="mt-3 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-dei-rose" />
           <span className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Weak area:</span> NLP — consider reviewing Module 5
+            <span className="font-medium text-foreground">Weak area:</span>{" "}
+            {weakestArea ? `${weakestArea.subject} (${Math.round(weakestArea.score)}%)` : "No data yet"}
           </span>
         </div>
       )}
@@ -113,7 +168,7 @@ export function ProgressChart() {
         <div className="mt-3 flex items-center gap-2">
           <span className="text-lg">🔥</span>
           <span className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">7-day streak!</span> Keep it going
+            <span className="font-medium text-foreground">Weekly activity</span> based on completed lessons
           </span>
         </div>
       )}

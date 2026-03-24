@@ -32,6 +32,15 @@ export type QuizBank = {
   distribution: QuizDistribution;
   isPublished: boolean;
   maxWarnings: number;
+  course?: string;
+  module?: string | { _id?: string; title?: string; order?: number };
+  lesson?: string | { _id?: string; title?: string; order?: number; module?: string };
+  isUnlocked?: boolean;
+  unlockRule?: "always" | "lesson_complete" | "module_complete" | "course_complete";
+  lockReason?: string;
+  hasPassed?: boolean;
+  bestPassedScore?: number | null;
+  passedAt?: string | null;
   createdAt?: string;
 };
 
@@ -92,6 +101,7 @@ export async function createManualQuizBank(payload: {
   distribution: QuizDistribution;
   maxWarnings: number;
   courseId?: string;
+  moduleId?: string;
   lessonId?: string;
 }) {
   return apiRequest<QuizBank>("quizzes/manual", {
@@ -108,6 +118,7 @@ export async function generateQuizBank(payload: {
   distribution: QuizDistribution;
   maxWarnings: number;
   courseId?: string;
+  moduleId?: string;
   lessonId?: string;
   pdfFile?: File | null;
 }) {
@@ -121,6 +132,7 @@ export async function generateQuizBank(payload: {
   if (payload.prompt) formData.append("prompt", payload.prompt);
   if (payload.topic) formData.append("topic", payload.topic);
   if (payload.courseId) formData.append("courseId", payload.courseId);
+  if (payload.moduleId) formData.append("moduleId", payload.moduleId);
   if (payload.lessonId) formData.append("lessonId", payload.lessonId);
   if (payload.pdfFile) formData.append("pdf", payload.pdfFile);
 
@@ -153,6 +165,10 @@ export async function publishQuizBank(quizId: string, isPublished: boolean) {
 
 export async function getAvailableQuizzes() {
   return apiRequest<QuizBank[]>("quizzes/available");
+}
+
+export async function getCourseTopicQuizzes(courseId: string) {
+  return apiRequest<QuizBank[]>(`quizzes/course/${courseId}`);
 }
 
 export async function startQuiz(quizId: string) {

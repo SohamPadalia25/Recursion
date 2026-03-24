@@ -8,6 +8,7 @@ import {
     issueCertificate,
     verifyCompletion,
 } from "@/lib/certificate-api";
+import { getMyEnrollments, type Enrollment } from "@/lib/course-api";
 import { studentNav } from "../roleNav";
 
 export default function StudentCertificatesPage() {
@@ -21,6 +22,29 @@ export default function StudentCertificatesPage() {
     const [eligible, setEligible] = useState(false);
     const [statusMessage, setStatusMessage] = useState("Check your course completion status to issue certificate.");
     const [existingHash, setExistingHash] = useState<string | null>(null);
+    const [enrolledCourses, setEnrolledCourses] = useState<Enrollment[]>([]);
+    const [loadingEnrollments, setLoadingEnrollments] = useState(true);
+
+    useEffect(() => {
+        let mounted = true;
+        const loadEnrollments = async () => {
+            try {
+                const data = await getMyEnrollments();
+                if (!mounted) return;
+                setEnrolledCourses(data || []);
+            } catch {
+                if (!mounted) return;
+                setEnrolledCourses([]);
+            } finally {
+                if (mounted) setLoadingEnrollments(false);
+            }
+        };
+
+        void loadEnrollments();
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     useEffect(() => {
         if (!courseId.trim()) return;
@@ -62,10 +86,14 @@ export default function StudentCertificatesPage() {
             setEligible(result.eligible);
 
             const ratio = (result.details.watchRatio * 100).toFixed(1);
+            const quizPart =
+                typeof result.details.requiredQuizCount === "number"
+                    ? ` Quizzes passed ${result.details.passedRequiredQuizCount || 0}/${result.details.requiredQuizCount}.`
+                    : "";
             setStatusMessage(
                 result.eligible
-                    ? `Eligible now: ${result.details.completedLectureCount}/${result.details.lectureCount} lectures completed and ${ratio}% watch time.`
-                    : `Not eligible: ${result.details.completedLectureCount}/${result.details.lectureCount} lectures completed and ${ratio}% watch time.`
+                    ? `Eligible now: ${result.details.completedLectureCount}/${result.details.lectureCount} lectures completed and ${ratio}% watch time.${quizPart}`
+                    : `Not eligible: ${result.details.completedLectureCount}/${result.details.lectureCount} lectures completed and ${ratio}% watch time.${quizPart}`
             );
         } catch (error) {
             setEligible(false);
@@ -138,6 +166,32 @@ export default function StudentCertificatesPage() {
                                 <Button variant="outline" className="h-11 rounded-xl" onClick={onCheck} disabled={checking}>
                                     {checking ? "Checking..." : "Check Eligibility"}
                                 </Button>
+                            </div>
+
+                            <div className="mt-3 rounded-lg border border-border/70 bg-muted/20 p-3">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Your Course IDs</p>
+                                {loadingEnrollments ? (
+                                    <p className="mt-1 text-sm text-muted-foreground">Loading enrolled courses...</p>
+                                ) : enrolledCourses.length === 0 ? (
+                                    <p className="mt-1 text-sm text-muted-foreground">No enrolled courses found.</p>
+                                ) : (
+                                    <div className="mt-2 space-y-2">
+                                        {enrolledCourses.slice(0, 10).map((entry) => {
+                                            const id = entry.course?._id || "";
+                                            return (
+                                                <div key={id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium text-foreground line-clamp-1">{entry.course?.title || "Course"}</p>
+                                                        <p className="text-xs text-muted-foreground break-all">ID: {id}</p>
+                                                    </div>
+                                                    <Button size="sm" variant="outline" className="rounded-lg" onClick={() => setCourseId(id)}>
+                                                        Use ID
+                                                    </Button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         </div>
 

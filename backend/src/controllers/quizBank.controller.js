@@ -7,12 +7,85 @@ import { QuizBank } from "../models/quizBank.model.js";
 import { QuizAttempt } from "../models/quizattempt.model.js";
 import { QuizAttemptReport } from "../models/quizAttemptReport.model.js";
 import { Lesson } from "../models/lesson.model.js";
+import { Module } from "../models/module.model.js";
+import { Course } from "../models/course.model.js";
+import { Progress } from "../models/progress.model.js";
+import { Enrollment } from "../models/enrollment.model.js";
 import { chatWithGroq } from "../services/groq.service.js";
 
 const require = createRequire(import.meta.url);
 const pdfParse = require("pdf-parse");
 
 const QUESTION_TYPES = ["mcq", "brief", "descriptive"];
+
+const escapeRegex = (value = "") => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const buildTitleSearchRegex = (identifier = "") => {
+  const tokens = String(identifier)
+    .trim()
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .map((t) => escapeRegex(t));
+
+  if (!tokens.length) return null;
+  return new RegExp(tokens.join(".*"), "i");
+};
+
+const toPlainObject = (value) => {
+  if (!value) return value;
+  if (typeof value.toObject === "function") return value.toObject();
+  return value;
+};
+
+const refId = (value) => {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (value?._id) return String(value._id);
+  if (value?._doc?._id) return String(value._doc._id);
+  return String(value);
+};
+
+const normalizeQuizScope = async ({ courseId, moduleId, lessonId }) => {
+  let normalizedCourseId = courseId || null;
+  let normalizedModuleId = moduleId || null;
+  let normalizedLessonId = lessonId || null;
+
+  if (lessonId) {
+    const lesson = await Lesson.findById(lessonId).select("_id course module");
+    if (!lesson) throw new ApiError(400, "Selected lesson does not exist");
+
+    if (courseId && String(lesson.course) !== String(courseId)) {
+      throw new ApiError(400, "Selected lesson does not belong to selected course");
+    }
+    if (moduleId && String(lesson.module) !== String(moduleId)) {
+      throw new ApiError(400, "Selected lesson does not belong to selected module");
+    }
+
+    normalizedCourseId = String(lesson.course);
+    normalizedModuleId = String(lesson.module);
+    normalizedLessonId = String(lesson._id);
+  } else if (moduleId) {
+    const module = await Module.findById(moduleId).select("_id course");
+    if (!module) throw new ApiError(400, "Selected module does not exist");
+    if (courseId && String(module.course) !== String(courseId)) {
+      throw new ApiError(400, "Selected module does not belong to selected course");
+    }
+
+    normalizedCourseId = String(module.course);
+    normalizedModuleId = String(module._id);
+  } else if (courseId) {
+    const course = await Course.findById(courseId).select("_id");
+    if (!course) throw new ApiError(400, "Selected course does not exist");
+    normalizedCourseId = String(course._id);
+  }
+
+  return {
+    courseId: normalizedCourseId,
+    moduleId: normalizedModuleId,
+    lessonId: normalizedLessonId,
+  };
+};
 
 const safeJsonParse = (raw) => {
   try {
@@ -329,9 +402,9 @@ const generateQuestionsWithAI = async ({
       ? `PDF content:\n${pdfText?.slice(0, 8000) || ""}`
       : sourceType === "topic"
         ? `Topic provided by instructor:\n${topic || ""}`
-      : sourceType === "prompt"
-        ? `Instructor prompt:\n${prompt || ""}`
-        : `Lesson context:\n${lessonContext || "General software engineering topics."}`;
+        : sourceType === "prompt"
+          ? `Instructor prompt:\n${prompt || ""}`
+          : `Lesson context:\n${lessonContext || "General software engineering topics."}`;
 
   const counts = {
     mcq: Number(requestedCounts?.mcqCount || 6),
@@ -432,16 +505,132 @@ const pickQuestionsForStudent = (quizBank, studentId) => {
   return Array.from(selectedMap.values()).slice(0, distribution.questionsPerStudent);
 };
 
+const enrichQuizAvailabilityForStudent = async (quizBanks, studentId) => {
+  const banks = Array.isArray(quizBanks) ? quizBanks.map(toPlainObject) : [];
+  if (!banks.length) return [];
+
+  const lessonIds = [...new Set(banks.map((item) => refId(item.lesson)).filter(Boolean))];
+  const moduleIds = [...new Set(banks.map((item) => refId(item.module)).filter(Boolean))];
+  const courseIds = [...new Set(banks.map((item) => refId(item.course)).filter(Boolean))];
+  const quizIds = banks.map((item) => String(item._id));
+
+  const moduleLessons = moduleIds.length
+    ? await Lesson.find({ module: { $in: moduleIds } }).select("_id module")
+    : [];
+  const moduleLessonMap = new Map();
+  moduleLessons.forEach((lesson) => {
+    const key = String(lesson.module);
+    if (!moduleLessonMap.has(key)) {
+      moduleLessonMap.set(key, []);
+    }
+    moduleLessonMap.get(key).push(String(lesson._id));
+  });
+
+  const progressLessonIds = [...new Set([...lessonIds, ...moduleLessons.map((item) => String(item._id))])];
+
+  const [progressRecords, enrollments, passedAttempts] = await Promise.all([
+    progressLessonIds.length
+      ? Progress.find({ student: studentId, lesson: { $in: progressLessonIds } }).select("lesson isCompleted")
+      : [],
+    courseIds.length
+      ? Enrollment.find({ student: studentId, course: { $in: courseIds } }).select("course completionPercentage isCompleted")
+      : [],
+    quizIds.length
+      ? QuizAttempt.find({
+        student: studentId,
+        quizBank: { $in: quizIds },
+        isPassed: true,
+        isTerminatedForCheating: false,
+      })
+        .select("quizBank score submittedAt")
+        .sort({ submittedAt: -1 })
+      : [],
+  ]);
+
+  const lessonProgressMap = new Map(
+    progressRecords.map((record) => [String(record.lesson), Boolean(record.isCompleted)])
+  );
+  const enrollmentMap = new Map(
+    enrollments.map((record) => [
+      String(record.course),
+      {
+        completionPercentage: Number(record.completionPercentage || 0),
+        isCompleted: Boolean(record.isCompleted),
+      },
+    ])
+  );
+
+  const passedByQuiz = new Map();
+  passedAttempts.forEach((attempt) => {
+    const key = String(attempt.quizBank);
+    if (!passedByQuiz.has(key)) {
+      passedByQuiz.set(key, attempt);
+    }
+  });
+
+  return banks.map((bank) => {
+    const quizId = String(bank._id);
+    const lessonId = refId(bank.lesson);
+    const moduleId = refId(bank.module);
+    const courseId = refId(bank.course);
+
+    let isUnlocked = true;
+    let unlockRule = "always";
+    let lockReason = "";
+
+    if (lessonId) {
+      unlockRule = "lesson_complete";
+      const lessonDone = Boolean(lessonProgressMap.get(lessonId));
+      isUnlocked = lessonDone;
+      if (!lessonDone) {
+        lockReason = "Complete this lesson to unlock its topic quiz.";
+      }
+    } else if (moduleId) {
+      unlockRule = "module_complete";
+      const moduleLessonIds = moduleLessonMap.get(moduleId) || [];
+      const moduleDone =
+        moduleLessonIds.length > 0 && moduleLessonIds.every((id) => Boolean(lessonProgressMap.get(id)));
+      isUnlocked = moduleDone;
+      if (!moduleDone) {
+        lockReason = "Complete all lessons in this module to unlock this quiz.";
+      }
+    } else if (courseId) {
+      unlockRule = "course_complete";
+      const enrollment = enrollmentMap.get(courseId);
+      const courseDone = Boolean(enrollment?.isCompleted || Number(enrollment?.completionPercentage || 0) >= 100);
+      isUnlocked = courseDone;
+      if (!courseDone) {
+        lockReason = "Complete this course to unlock its quiz.";
+      }
+    }
+
+    const passedAttempt = passedByQuiz.get(quizId);
+
+    return {
+      ...bank,
+      isUnlocked,
+      unlockRule,
+      lockReason,
+      hasPassed: Boolean(passedAttempt),
+      bestPassedScore: passedAttempt ? Number(passedAttempt.score || 0) : null,
+      passedAt: passedAttempt?.submittedAt || null,
+    };
+  });
+};
+
 const createQuizBank = asyncHandler(async (req, res) => {
-  const { title, courseId, lessonId, questions, distribution, maxWarnings } = req.body;
+  const { title, courseId, moduleId, lessonId, questions, distribution, maxWarnings } = req.body;
   if (!title?.trim()) throw new ApiError(400, "title is required");
   if (!Array.isArray(questions) || questions.length === 0) throw new ApiError(400, "questions are required");
+
+  const scope = await normalizeQuizScope({ courseId, moduleId, lessonId });
 
   const quizBank = await QuizBank.create({
     title: title.trim(),
     instructor: req.user._id,
-    course: courseId || null,
-    lesson: lessonId || null,
+    course: scope.courseId || null,
+    module: scope.moduleId || null,
+    lesson: scope.lessonId || null,
     sourceType: "manual",
     questions,
     distribution: clampDistribution(distribution),
@@ -452,7 +641,7 @@ const createQuizBank = asyncHandler(async (req, res) => {
 });
 
 const generateQuizBank = asyncHandler(async (req, res) => {
-  const { title, sourceType, prompt, topic, courseId, lessonId, maxWarnings } = req.body;
+  const { title, sourceType, prompt, topic, courseId, moduleId, lessonId, maxWarnings } = req.body;
   let distribution = req.body.distribution;
   if (typeof distribution === "string") {
     try {
@@ -472,8 +661,10 @@ const generateQuizBank = asyncHandler(async (req, res) => {
     const buffer = await fs.readFile(req.file.path);
     const parsed = await pdfParse(buffer);
     pdfText = parsed.text || "";
-    await fs.unlink(req.file.path).catch(() => {});
+    await fs.unlink(req.file.path).catch(() => { });
   }
+
+  const scope = await normalizeQuizScope({ courseId, moduleId, lessonId });
 
   const normalizedDistribution = clampDistribution(distribution);
   const questions = await generateQuestionsWithAI({
@@ -488,8 +679,9 @@ const generateQuizBank = asyncHandler(async (req, res) => {
   const quizBank = await QuizBank.create({
     title: title.trim(),
     instructor: req.user._id,
-    course: courseId || null,
-    lesson: lessonId || null,
+    course: scope.courseId || null,
+    module: scope.moduleId || null,
+    lesson: scope.lessonId || null,
     sourceType,
     generationPrompt: prompt || topic || "",
     questions,
@@ -518,16 +710,70 @@ const publishQuizBank = asyncHandler(async (req, res) => {
 });
 
 const listPublishedQuizBanks = asyncHandler(async (req, res) => {
-  const items = await QuizBank.find({ isPublished: true })
-    .select("title course lesson distribution maxWarnings sourceType createdAt")
+  const { includeLocked = "false", courseId } = req.query;
+
+  const filter = { isPublished: true };
+  if (courseId) {
+    const courseLessonIds = await Lesson.find({ course: courseId }).distinct("_id");
+    const courseModuleIds = await Module.find({ course: courseId }).distinct("_id");
+    filter.$or = [{ course: courseId }, { module: { $in: courseModuleIds } }, { lesson: { $in: courseLessonIds } }];
+  }
+
+  const items = await QuizBank.find(filter)
+    .select("title course module lesson distribution maxWarnings sourceType createdAt")
     .sort({ createdAt: -1 });
-  return res.status(200).json(new ApiResponse(200, items, "Available quizzes fetched"));
+
+  const hydrated = await enrichQuizAvailabilityForStudent(items, req.user._id);
+  const shouldIncludeLocked = String(includeLocked).toLowerCase() === "true";
+  const payload = shouldIncludeLocked ? hydrated : hydrated.filter((item) => item.isUnlocked);
+
+  return res.status(200).json(new ApiResponse(200, payload, "Available quizzes fetched"));
+});
+
+const listCourseQuizBanksForStudent = asyncHandler(async (req, res) => {
+  const { courseId } = req.params;
+
+  const courseLessonIds = await Lesson.find({ course: courseId }).distinct("_id");
+  const courseModuleIds = await Module.find({ course: courseId }).distinct("_id");
+  let items = await QuizBank.find({
+    isPublished: true,
+    $or: [{ course: courseId }, { module: { $in: courseModuleIds } }, { lesson: { $in: courseLessonIds } }],
+  })
+    .select("title course module lesson distribution maxWarnings sourceType createdAt")
+    .populate("module", "title order")
+    .populate("lesson", "title order module")
+    .sort({ createdAt: -1 });
+
+  // Backward-compatible fallback for older quiz banks that were not explicitly mapped to course/lesson.
+  if (!items.length) {
+    const course = await Course.findById(courseId).select("title").lean();
+    const titleRegex = buildTitleSearchRegex(course?.title || "");
+    if (titleRegex) {
+      items = await QuizBank.find({
+        isPublished: true,
+        course: null,
+        module: null,
+        lesson: null,
+        title: { $regex: titleRegex },
+      })
+        .select("title course module lesson distribution maxWarnings sourceType createdAt")
+        .sort({ createdAt: -1 });
+    }
+  }
+
+  const hydrated = await enrichQuizAvailabilityForStudent(items, req.user._id);
+  return res.status(200).json(new ApiResponse(200, hydrated, "Course quizzes fetched"));
 });
 
 const startQuizAttempt = asyncHandler(async (req, res) => {
   const { quizId } = req.params;
   const quizBank = await QuizBank.findById(quizId);
   if (!quizBank || !quizBank.isPublished) throw new ApiError(404, "Quiz not available");
+
+  const [availability] = await enrichQuizAvailabilityForStudent([quizBank], req.user._id);
+  if (!availability?.isUnlocked) {
+    throw new ApiError(403, availability?.lockReason || "Quiz is locked for this student");
+  }
 
   const selectedQuestions = pickQuestionsForStudent(quizBank, req.user._id.toString());
   if (!selectedQuestions.length) throw new ApiError(400, "Question bank does not have enough questions");
@@ -631,7 +877,7 @@ const submitQuizAttemptWithLogs = asyncHandler(async (req, res) => {
   await attempt.save();
 
   // Auto-generate report in background (do not await)
-  queueAttemptReportGeneration(attempt._id, req.user._id).catch(() => {});
+  queueAttemptReportGeneration(attempt._id, req.user._id).catch(() => { });
 
   return res.status(200).json(
     new ApiResponse(
@@ -704,6 +950,7 @@ export {
   listMyQuizBanks,
   publishQuizBank,
   listPublishedQuizBanks,
+  listCourseQuizBanksForStudent,
   startQuizAttempt,
   submitQuizAttemptWithLogs,
   getQuizAttemptReport,

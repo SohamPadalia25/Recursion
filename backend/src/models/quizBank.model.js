@@ -118,6 +118,11 @@ const quizBankSchema = new mongoose.Schema(
       ref: "Lesson",
       default: null,
     },
+    module: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Module",
+      default: null,
+    },
     sourceType: {
       type: String,
       enum: ["manual", "auto", "prompt", "pdf", "topic"],

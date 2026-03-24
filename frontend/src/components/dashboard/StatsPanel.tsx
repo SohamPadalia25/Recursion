@@ -1,29 +1,7 @@
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { BookOpen, CheckCircle2, Clock } from "lucide-react";
-
-const stats = [
-  {
-    label: "Total Modules",
-    value: 24,
-    icon: BookOpen,
-    gradient: "dei-gradient-sky",
-    color: "text-dei-sky",
-  },
-  {
-    label: "Completed",
-    value: 16,
-    icon: CheckCircle2,
-    gradient: "dei-gradient-sage",
-    color: "text-dei-sage",
-  },
-  {
-    label: "Upcoming",
-    value: 8,
-    icon: Clock,
-    gradient: "dei-gradient-amber",
-    color: "text-dei-amber",
-  },
-];
+import { getMyEnrollments, type Enrollment } from "@/lib/course-api";
 
 const container = {
   hidden: {},
@@ -36,6 +14,57 @@ const item = {
 };
 
 export function StatsPanel() {
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const data = await getMyEnrollments();
+        if (!mounted) return;
+        setEnrollments(data || []);
+      } catch {
+        if (!mounted) return;
+        setEnrollments([]);
+      }
+    };
+
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const stats = useMemo(() => {
+    const totalCourses = enrollments.length;
+    const completed = enrollments.filter((item) => item.isCompleted).length;
+    const upcoming = Math.max(0, totalCourses - completed);
+
+    return [
+      {
+        label: "Enrolled Courses",
+        value: totalCourses,
+        icon: BookOpen,
+        gradient: "dei-gradient-sky",
+        color: "text-dei-sky",
+      },
+      {
+        label: "Completed",
+        value: completed,
+        icon: CheckCircle2,
+        gradient: "dei-gradient-sage",
+        color: "text-dei-sage",
+      },
+      {
+        label: "In Progress",
+        value: upcoming,
+        icon: Clock,
+        gradient: "dei-gradient-amber",
+        color: "text-dei-amber",
+      },
+    ];
+  }, [enrollments]);
+
   return (
     <motion.div
       variants={container}

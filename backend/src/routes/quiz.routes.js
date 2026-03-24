@@ -8,6 +8,7 @@ import {
   listMyQuizBanks,
   publishQuizBank,
   listPublishedQuizBanks,
+  listCourseQuizBanksForStudent,
   startQuizAttempt,
   submitQuizAttemptWithLogs,
   getQuizAttemptReport,
@@ -22,6 +23,7 @@ router.post("/generate", isInstructor, upload.single("pdf"), generateQuizBank);
 router.patch("/:quizId/publish", isInstructor, publishQuizBank);
 
 router.get("/available", listPublishedQuizBanks);
+router.get("/course/:courseId", listCourseQuizBanksForStudent);
 router.post("/:quizId/start", startQuizAttempt);
 router.post("/:quizId/submit", submitQuizAttemptWithLogs);
 router.get("/attempts/:attemptId/report", getQuizAttemptReport);
