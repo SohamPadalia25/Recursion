@@ -5,7 +5,7 @@ import { User } from '../models/user.model.js';
 import { Course } from '../models/course.model.js';
 import { Enrollment } from '../models/enrollment.model.js';
 import { Review } from '../models/review.model.js';
-import { AITutorChat } from '../models/aiTutorChat.model.js';
+import { AITutorChat } from '../models/Aitutorchat.model.js';
 import { Notification } from '../models/notification.model.js';
 import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";

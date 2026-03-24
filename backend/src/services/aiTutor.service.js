@@ -3,11 +3,11 @@
 // Maintains full conversation history for context
 
 import { chatWithGroq } from "./groq.service.js";
-import { AITutorChat } from "../models/aiTutorChat.model.js";
+import { AITutorChat } from "../models/Aitutorchat.model.js";
 import { Lesson } from "../models/lesson.model.js";
 import { Course } from "../models/course.model.js";
 import { Progress } from "../models/progress.model.js";
-import { QuizAttempt } from "../models/quizAttempt.model.js";
+import { QuizAttempt } from "../models/quizattempt.model.js";
 import { Enrollment } from "../models/enrollment.model.js";
 import { v4 as uuidv4 } from "uuid";
 

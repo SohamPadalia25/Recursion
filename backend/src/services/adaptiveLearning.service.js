@@ -3,8 +3,8 @@
 
 import { Lesson } from "../models/lesson.model.js";
 import { Progress } from "../models/progress.model.js";
-import { QuizAttempt } from "../models/quizAttempt.model.js";
-import { Flashcard } from "../models/flashcard.model.js";
+import { QuizAttempt } from "../models/quizattempt.model.js";
+import { Flashcard } from "../models/flashCard.model.js";
 import { chatWithGroq } from "./groq.service.js";
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));

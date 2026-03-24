@@ -5,8 +5,8 @@
 import { Progress } from "../models/progress.model.js";
 import { Enrollment } from "../models/enrollment.model.js";
 import { StudyPlan } from "../models/studyPlan.model.js";
-import { QuizAttempt } from "../models/quizAttempt.model.js";
-import { Flashcard } from "../models/flashcard.model.js";
+import { QuizAttempt } from "../models/quizattempt.model.js";
+import { Flashcard } from "../models/flashCard.model.js";
 import { Notification } from "../models/notification.model.js";
 import { Lesson } from "../models/lesson.model.js";
 import { runStudyPlanAgent } from "./studyPlanAgent.service.js";
