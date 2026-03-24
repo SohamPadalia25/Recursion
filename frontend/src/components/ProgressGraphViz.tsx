@@ -31,7 +31,7 @@ export function ProgressGraphViz({
         }
     };
 
-    const handleCanvasClick = () => {
+    const handleBackgroundClick = () => {
         // Reset on canvas click
     };
 
@@ -89,7 +89,7 @@ export function ProgressGraphViz({
                 linkColor={() => "rgba(100,100,100,0.2)"}
                 linkWidth={2}
                 onNodeClick={handleNodeClick}
-                onCanvasClick={handleCanvasClick}
+                onBackgroundClick={handleBackgroundClick}
                 cooldownTime={3000}
                 height={height}
                 width={undefined}
