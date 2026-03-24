@@ -20,6 +20,11 @@ const answerSchema = new mongoose.Schema(
       type: Boolean,
       required: true,
     },
+    timeSpentSeconds: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
   },
   { _id: false }
 );

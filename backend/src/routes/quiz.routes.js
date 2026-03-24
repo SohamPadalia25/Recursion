@@ -10,6 +10,7 @@ import {
   listPublishedQuizBanks,
   startQuizAttempt,
   submitQuizAttemptWithLogs,
+  getQuizAttemptReport,
 } from "../controllers/quizBank.controller.js";
 
 const router = Router();
@@ -23,5 +24,6 @@ router.patch("/:quizId/publish", isInstructor, publishQuizBank);
 router.get("/available", listPublishedQuizBanks);
 router.post("/:quizId/start", startQuizAttempt);
 router.post("/:quizId/submit", submitQuizAttemptWithLogs);
+router.get("/attempts/:attemptId/report", getQuizAttemptReport);
 
 export default router;

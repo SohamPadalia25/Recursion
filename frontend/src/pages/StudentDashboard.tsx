@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { TopNav } from "@/components/dashboard/TopNav";
@@ -24,6 +24,7 @@ const StudentDashboard = () => {
   const [eligibilityMessage, setEligibilityMessage] = useState("Enter a course id to check certificate eligibility.");
   const [myLearning, setMyLearning] = useState<Enrollment[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [learningPlanCourseId, setLearningPlanCourseId] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -44,6 +45,25 @@ const StudentDashboard = () => {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  const learningPlanEnrollments = useMemo(
+    () =>
+      myLearning.map((e) => ({
+        id: e.course?._id || "",
+        title: e.course?.title || "Course",
+      })).filter((o) => o.id),
+    [myLearning]
+  );
+
+  useEffect(() => {
+    if (!learningPlanCourseId && learningPlanEnrollments.length > 0) {
+      setLearningPlanCourseId(learningPlanEnrollments[0].id);
+    }
+  }, [learningPlanCourseId, learningPlanEnrollments]);
+
+  const handleLearningPlanCourse = useCallback((id: string) => {
+    setLearningPlanCourseId(id);
   }, []);
 
   const summary = useMemo(() => {
@@ -146,7 +166,11 @@ const StudentDashboard = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-              <LearningPlan />
+              <LearningPlan
+                enrollments={learningPlanEnrollments}
+                selectedCourseId={learningPlanCourseId}
+                onSelectCourse={handleLearningPlanCourse}
+              />
               <ProgressChart />
             </div>
 

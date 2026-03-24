@@ -2,6 +2,7 @@ import { Router } from "express";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import {
   getDashboardContext,
+  getAdaptiveSnapshot,
   tutorChat,
   flagChat,
   tutorHistory,
@@ -28,6 +29,10 @@ router.use(verifyJWT);
 // ── Dashboard Agent ──────────────────────────
 // GET  /api/v1/ai/dashboard/:courseId
 router.get("/dashboard/:courseId", getDashboardContext);
+
+// ── Adaptive learning (mastery / path / coaching) ─
+// GET  /api/v1/ai/adaptive/:courseId
+router.get("/adaptive/:courseId", getAdaptiveSnapshot);
 
 // ── AI Tutor ─────────────────────────────────
 // POST /api/v1/ai/tutor/chat

@@ -50,11 +50,36 @@ export type StartQuizResponse = {
 };
 
 export type SubmitQuizResult = {
+  attemptId: string;
   score: number;
   isPassed: boolean;
   isTerminatedForCheating: boolean;
   warningCount: number;
   maxWarnings: number;
+};
+
+export type QuizAttemptReport = {
+  attemptId: string;
+  status: "pending" | "ready" | "failed";
+  telemetry: {
+    attemptId: string;
+    quizTitle: string;
+    courseTitle: string;
+    lessonTitle: string;
+    score: number;
+    correctCount: number;
+    incorrectCount: number;
+    unansweredCount: number;
+    totalQuestions: number;
+    timeTakenSeconds: number;
+    avgTimePerQuestionSeconds: number;
+    warningCount: number;
+    slowAndWrong: Array<{ index: number; text: string; timeSpentSeconds: number }>;
+    questions: Array<{ index: number; type: QuizQuestionType; text: string; isCorrect: boolean; timeSpentSeconds: number }>;
+  } | null;
+  report: any | null;
+  error?: string;
+  generatedAt?: string | null;
 };
 
 export async function getInstructorQuizBanks() {
@@ -142,7 +167,7 @@ export async function submitQuiz(
     attemptId: string;
     timeTaken: number;
     warningCount: number;
-    answers: Array<{ questionId: string; selectedIndex?: number | null; answerText?: string }>;
+    answers: Array<{ questionId: string; selectedIndex?: number | null; answerText?: string; timeSpentSeconds?: number }>;
     activityLogs: Array<{ eventType: string; timestamp: string; meta?: string }>;
   },
 ) {
@@ -150,4 +175,8 @@ export async function submitQuiz(
     method: "POST",
     body: payload,
   });
+}
+
+export async function getQuizAttemptReport(attemptId: string) {
+  return apiRequest<QuizAttemptReport>(`quizzes/attempts/${attemptId}/report`);
 }
