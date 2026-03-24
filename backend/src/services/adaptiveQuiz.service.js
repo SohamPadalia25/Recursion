@@ -6,7 +6,7 @@ import { chatWithGroq } from "./groq.service.js";
 import { Quiz } from "../models/quiz.model.js";
 import { QuizAttempt } from "../models/quizAttempt.model.js";
 import { Lesson } from "../models/lesson.model.js";
-import { analyzePerformance } from "./agentOrchestrator.service.js";
+import { getAdaptiveQuizSignals } from "./adaptiveLearning.service.js";
 
 // ─────────────────────────────────────────────
 // GENERATE QUIZ FROM LESSON (Groq LLM)
@@ -81,7 +81,11 @@ const getOrCreateQuiz = async (lessonId, studentId, courseId) => {
     .sort({ createdAt: -1 })
     .limit(5);
 
-  const { difficulty } = analyzePerformance(recentAttempts);
+  const { difficulty, reason: difficultyReason } = await getAdaptiveQuizSignals(
+    studentId,
+    courseId,
+    recentAttempts
+  );
 
   if (!quiz) {
     // Generate new quiz using LLM
@@ -101,6 +105,7 @@ const getOrCreateQuiz = async (lessonId, studentId, courseId) => {
     _id: quiz._id,
     passingScore: quiz.passingScore,
     difficulty,
+    difficultyReason,
     questions: quiz.questions.map((q) => ({
       _id: q._id,
       text: q.text,

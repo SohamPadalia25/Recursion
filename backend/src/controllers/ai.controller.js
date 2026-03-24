@@ -7,6 +7,7 @@ import { transcribeAudioFromUrl } from "../services/groq.service.js";
 import { chatWithGroq } from "../services/groq.service.js";
 
 import { runDashboardAgents } from "../services/agentOrchestrator.service.js";
+import { buildAdaptiveLearningSnapshot } from "../services/adaptiveLearning.service.js";
 import { sendMessageToTutor, flagTutorResponse, getChatHistory } from "../services/aiTutor.service.js";
 import { getOrCreateQuiz, submitQuizAttempt, regenerateQuiz } from "../services/adaptiveQuiz.service.js";
 import { generateFlashcards, reviewFlashcard, getDueFlashcards } from "../services/flashcardAgent.service.js";
@@ -40,6 +41,19 @@ const getDashboardContext = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, dashboardData, "Dashboard context loaded"));
+});
+
+// ─────────────────────────────────────────────
+// ADAPTIVE LEARNING SNAPSHOT (real-time refresh after quiz / lesson)
+// GET /api/v1/ai/adaptive/:courseId
+// ─────────────────────────────────────────────
+const getAdaptiveSnapshot = asyncHandler(async (req, res) => {
+  const { courseId } = req.params;
+  const studentId = req.user._id;
+
+  const snapshot = await buildAdaptiveLearningSnapshot(studentId, courseId, null);
+
+  return res.status(200).json(new ApiResponse(200, snapshot, "Adaptive snapshot loaded"));
 });
 
 // ─────────────────────────────────────────────
@@ -455,6 +469,7 @@ const analyzeDoubt = asyncHandler(async (req, res) => {
 
 export {
   getDashboardContext,
+  getAdaptiveSnapshot,
   tutorChat,
   flagChat,
   tutorHistory,
