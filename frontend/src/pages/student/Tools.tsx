@@ -5,8 +5,24 @@ import Editor from "@monaco-editor/react";
 
 const tools = [
     { title: "Code Editor", desc: "Practice coding with structured prompts and instant checks." },
-    { title: "Whiteboard", desc: "Visualize system design and algorithm flows quickly." },
-    { title: "Video Call", desc: "Join guided mentor sessions with collaboration tools." },
+    {
+        title: "Whiteboard",
+        desc: "Visualize system design and algorithm flows quickly.",
+        guide: [
+            "Open a live class from Join Live Session on dashboard.",
+            "After joining, scroll to Interactive Whiteboard section.",
+            "Use pen/eraser tools to draw flowcharts and algorithms.",
+        ],
+    },
+    {
+        title: "Video Call",
+        desc: "Join guided mentor sessions with collaboration tools.",
+        guide: [
+            "Click Join Live Session from dashboard.",
+            "Enter session code shared by instructor.",
+            "Use video/audio controls and discuss with mentor live.",
+        ],
+    },
 ];
 
 export default function StudentToolsPage() {
@@ -671,11 +687,16 @@ console.log("✓ All JavaScript examples executed successfully!");`;
                     <h2 className="text-xl font-bold text-foreground mb-4">Other Tools</h2>
                     <div className="grid gap-4 md:grid-cols-2">
                         {tools.slice(1).map((tool) => (
-                            <article key={tool.title} className="dei-card p-5">
+                            <article key={tool.title} className="dei-card border-2 border-orange-300 p-5 shadow-sm">
                                 <h2 className="text-base font-semibold text-foreground">{tool.title}</h2>
                                 <p className="mt-2 text-sm text-muted-foreground">{tool.desc}</p>
-                                <div className="mt-4 rounded-xl border border-border bg-muted/30 p-8 text-center text-xs text-muted-foreground">
-                                    Coming Soon
+                                <div className="mt-4 rounded-xl border-2 border-orange-300 bg-muted/30 p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-foreground">How to use on this website</p>
+                                    <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                                        {tool.guide?.map((step) => (
+                                            <li key={step}>• {step}</li>
+                                        ))}
+                                    </ul>
                                 </div>
                             </article>
                         ))}
