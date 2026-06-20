@@ -41,7 +41,7 @@
 
 ## Overview
 
-**Recursion** is a full-stack, AI-powered adaptive learning management system (LMS) designed for the modern education landscape. It empowers instructors to build rich, structured courses with AI assistance, while students benefit from personalized learning paths, real-time video tutoring, automated assessments, and intelligent feedback loops.
+**StudyBuddy** is a full-stack, AI-powered adaptive learning management system (LMS) designed for the modern education landscape. It empowers instructors to build rich, structured courses with AI assistance, while students benefit from personalized learning paths, real-time video tutoring, automated assessments, and intelligent feedback loops.
 
 The platform bridges the gap between static course content and dynamic, adaptive education — combining large language models, computer vision, blockchain certification, and graph-based learning analytics into a single cohesive product.
 
