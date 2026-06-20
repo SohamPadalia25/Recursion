@@ -1,6 +1,6 @@
 <div align="center">
 
-# Recursion
+# StudyBuddy
 
 ### AI-Powered Adaptive Learning Platform
 
