@@ -249,7 +249,7 @@ export function AIBuddy() {
                   <Sparkles className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground text-sm">Dei AI Buddy</h3>
+                  <h3 className="font-semibold text-foreground text-sm">StudyBuddy AI Buddy</h3>
                   <p className="text-xs text-muted-foreground">Ask me anything about your courses</p>
                 </div>
               </div>

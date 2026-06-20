@@ -40,6 +40,12 @@ export default function SignupPage() {
         <div className="min-h-screen bg-background px-4 py-10">
             <div className="mx-auto grid w-full max-w-5xl overflow-hidden rounded-3xl border border-border bg-card shadow-sm lg:grid-cols-2">
                 <div className="hidden bg-gradient-to-br from-dei-sage/20 via-dei-sky/10 to-dei-peach/20 p-8 lg:block">
+                    <div className="mb-6 flex items-center gap-2">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
+                            <span className="text-lg font-bold text-primary-foreground">S</span>
+                        </div>
+                        <span className="text-xl font-bold tracking-tight text-foreground">StudyBuddy</span>
+                    </div>
                     <h1 className="text-3xl font-extrabold text-foreground">Create Account</h1>
                     <p className="mt-2 text-sm text-muted-foreground">Set your role and start with the right tools.</p>
                 </div>

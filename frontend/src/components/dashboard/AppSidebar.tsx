@@ -49,18 +49,18 @@ export function AppSidebar() {
       <div className="flex items-center justify-center h-16 border-b border-border/50">
         <motion.div
           className="flex items-center gap-2 overflow-hidden"
-          animate={{ width: collapsed ? 40 : 120 }}
+          animate={{ width: collapsed ? 40 : 170 }}
         >
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-primary-foreground font-bold text-lg">D</span>
+            <span className="text-primary-foreground font-bold text-lg">S</span>
           </div>
           {!collapsed && (
             <motion.span
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="font-bold text-xl tracking-tight text-foreground"
+              className="font-bold text-xl tracking-tight text-foreground whitespace-nowrap"
             >
-              ei
+              tudyBuddy
             </motion.span>
           )}
         </motion.div>

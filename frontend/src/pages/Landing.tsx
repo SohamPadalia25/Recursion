@@ -48,9 +48,9 @@ function FloatingOrb({ className, delay = 0 }: { className: string; delay?: numb
 }
 
 const testimonials = [
-  { name: "Priya Sharma", role: "Data Science Student", text: "Dei adapted to my learning speed. I finished my ML course 40% faster than expected.", initials: "PS", gradient: "from-dei-peach to-dei-rose" },
+  { name: "Priya Sharma", role: "Data Science Student", text: "StudyBuddy adapted to my learning speed. I finished my ML course 40% faster than expected.", initials: "PS", gradient: "from-dei-peach to-dei-rose" },
   { name: "Marcus Chen", role: "Full-Stack Developer", text: "The AI buddy is like having a personal tutor available 24/7. Game changer.", initials: "MC", gradient: "from-dei-sky to-dei-lavender" },
-  { name: "Fatima Al-Rashid", role: "UX Design Instructor", text: "My students' completion rates jumped from 34% to 89% after switching to Dei.", initials: "FA", gradient: "from-dei-sage to-dei-sky" },
+  { name: "Fatima Al-Rashid", role: "UX Design Instructor", text: "My students' completion rates jumped from 34% to 89% after switching to StudyBuddy.", initials: "FA", gradient: "from-dei-sage to-dei-sky" },
 ];
 
 const features = [
@@ -109,9 +109,9 @@ export default function Landing() {
       >
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">D</span>
+            <span className="text-primary-foreground font-bold text-lg">S</span>
           </div>
-          <span className="font-bold text-xl tracking-tight">ei</span>
+          <span className="font-bold text-xl tracking-tight">tudyBuddy</span>
         </div>
         <div className="hidden md:flex items-center gap-8">
           <a href="#features" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Features</a>
@@ -177,7 +177,7 @@ export default function Landing() {
               transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
               className="text-lg md:text-xl text-muted-foreground mb-10 text-pretty max-w-lg"
             >
-              Dei uses artificial intelligence to build personalized learning paths,
+              StudyBuddy uses artificial intelligence to build personalized learning paths,
               adapt to your pace, and keep you engaged — so you actually finish what you start.
             </motion.p>
 
@@ -263,7 +263,7 @@ export default function Landing() {
               Intelligence baked into every lesson
             </h2>
             <p className="text-muted-foreground max-w-xl mx-auto text-pretty">
-              Not just another course library. Dei thinks, adapts, and grows with each learner.
+              Not just another course library. StudyBuddy thinks, adapts, and grows with each learner.
             </p>
           </AnimatedSection>
 
@@ -310,7 +310,7 @@ export default function Landing() {
             {[
               { step: "01", icon: MousePointerClick, title: "Tell us your goals", desc: "Pick your subject, skill level, and how much time you have. That's it." },
               { step: "02", icon: Brain, title: "AI builds your path", desc: "Our engine crafts a personalized curriculum with adaptive difficulty and pacing." },
-              { step: "03", icon: Rocket, title: "Learn & evolve", desc: "As you progress, Dei reshapes your path. Struggling? It slows down. Flying? It challenges you." },
+              { step: "03", icon: Rocket, title: "Learn & evolve", desc: "As you progress, StudyBuddy reshapes your path. Struggling? It slows down. Flying? It challenges you." },
             ].map((s, i) => (
               <AnimatedSection key={s.step} delay={i * 0.2}>
                 <motion.div 
@@ -369,7 +369,7 @@ export default function Landing() {
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                     <Sparkles className="w-5 h-5 text-primary" />
                   </div>
-                  <span className="text-base font-semibold">Dei AI Buddy</span>
+                  <span className="text-base font-semibold">StudyBuddy AI Buddy</span>
                   <span className="ml-auto text-xs text-dei-sage font-medium px-3 py-1 rounded-full bg-dei-sage/10">Online</span>
                 </div>
                 
@@ -487,16 +487,16 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-              <span className="text-primary-foreground font-bold text-lg">D</span>
+              <span className="text-primary-foreground font-bold text-lg">S</span>
             </div>
-            <span className="font-bold text-xl">ei</span>
+            <span className="font-bold text-xl">tudyBuddy</span>
           </div>
           <div className="flex items-center gap-8 text-sm font-medium text-muted-foreground">
             <a href="#" className="hover:text-primary transition-colors">Privacy</a>
             <a href="#" className="hover:text-primary transition-colors">Terms</a>
             <a href="#" className="hover:text-primary transition-colors">Support</a>
           </div>
-          <p className="text-sm text-muted-foreground">© 2026 Dei. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">© 2026 StudyBuddy. All rights reserved.</p>
         </div>
       </footer>
     </div>
